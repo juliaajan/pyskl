@@ -13,29 +13,42 @@ mp_drawing_styles = mp.solutions.drawing_styles
 mp_hands = mp.solutions.hands
 
 
+#nimmt mediapipe landmark object und erzeugt numpy array der form (21, 2) daraus
+#shape(21, 2), weil mediapipe 21 keypoints pro hand hat, jedes mit x und y Koordinate (darum 2)
 def landmark2nparray(landmark):
     ret = np.array([[lm.x, lm.y] for lm in landmark.landmark])
     assert ret.shape == (21, 2)
     return ret
 
-
+#erzeugt bounding box um die erkannten hand-keypoints
 def kp2box(kpt, margin=0.2):
+    #bestimme min und max x und y werte aller keypoints
     min_x, max_x = min(kpt[:, 0]), max(kpt[:, 0])
     min_y, max_y = min(kpt[:, 1]), max(kpt[:, 1])
+    #berechnet das zentrum der box (durch mittelwert von min und max x bzw y wert)
     c_x, c_y = (min_x + max_x) / 2, (min_y + max_y) / 2
+    #berechne breite und höhe der box
     w, h = max_x - min_x, max_y - min_y
+    #addiere margin  (padding) um die box (default: 1+20% der box)
+    #um die box zu vergrößern
     w2, h2 = w * (1 + margin) / 2, h * (1 + margin) / 2
+    #schneidet alle werte auf bereich zwischen 0 und 1 zu, damit box innerhalb des bildes bleibt
     min_x = max(0, c_x - w2)
     min_y = max(0, c_y - h2)
     max_x = min(1, c_x + w2)
     max_y = min(1, c_y + h2)
     return (min_x, min_y, max_x - min_x, max_y - min_y)
 
-
+#box horizontal spiegeln 
+#box besteht aus (min_x, min_y, width, height), x und y je zwischen 0 und 1 normalisiert
+# Grund: wenn das webcambild spiegelt (cv2.flip), muss auch die box gespiegelt werden
 def flip_box(box):
     return (1 - box[0] - box[2], box[1], box[2], box[3])
 
-
+#erstellt aus hand-keypoint und bounding box anhand der historie
+#vorheriger frames eine sequenz an keypoints, die das model als eingabe erwartet
+#fake, weil die dtaen aus den webcam-Laufzeit Daten erstellt werden, und es keine echten Trainingsdaten gibt
+#das macht man um die bisherige test_pipeline trotzdem unverändert nutzen zu können
 def create_fake_anno(history, keypoint, bbox, clip_len=10):
     from mmdet.core import BboxOverlaps2D
     bbox = torch.tensor(bbox)[None]
@@ -43,6 +56,7 @@ def create_fake_anno(history, keypoint, bbox, clip_len=10):
     results = [keypoint]
 
     # frame contains tuples of (keypoint, bbox)
+    #geht rückwärts durch die history der vorherigen frames
     for frame in history[::-1]:
         anchors = torch.tensor([x[1] for x in frame])
         if anchors.shape[0] == 0:

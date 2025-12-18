@@ -115,6 +115,7 @@ def frame_extraction(video_path, short_side):
     os.makedirs(target_dir, exist_ok=True)
     # Should be able to handle videos up to several hours
     frame_tmpl = osp.join(target_dir, 'img_{:06d}.jpg')
+    #liest das video ein
     vid = cv2.VideoCapture(video_path)
     frames = []
     frame_paths = []
@@ -123,11 +124,15 @@ def frame_extraction(video_path, short_side):
     new_h, new_w = None, None
     while flag:
         if new_h is None:
+            #bestimmt die videogröße
             h, w, _ = frame.shape
+            #berechnet neue auflösung so, dass die kurze Seite short_side bleibt und das seitenverhältnis bleibt?
             new_w, new_h = mmcv.rescale_size((w, h), (short_side, np.Inf))
-
+        #für jedes frame:
+        #skaliere den frame auf die neue auflösung
         frame = mmcv.imresize(frame, (new_w, new_h))
 
+        #hänge frame an die Liste von frames, speichere das frame imt mp ordner und speicher den path ab
         frames.append(frame)
         frame_path = frame_tmpl.format(cnt + 1)
         frame_paths.append(frame_path)
@@ -136,6 +141,7 @@ def frame_extraction(video_path, short_side):
         cnt += 1
         flag, frame = vid.read()
 
+    #gebe die liste an gespeicherten dateipfaden und die frames zurück
     return frame_paths, frames
 
 
