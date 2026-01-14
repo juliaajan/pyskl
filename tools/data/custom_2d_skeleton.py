@@ -40,27 +40,42 @@ default_pose_ckpt = (
     'hrnet_w32_coco_256x192-c78dce93_20200708.pth')
 
 
+#öffnet die Videodatei , iteriert über alle frames im video, konvertiert jedes frame von decord-format in numpy-array
+#shape pro frame: (h, w, 3) (RGB Bild)
 def extract_frame(video_path):
     vid = decord.VideoReader(video_path)
     return [x.asnumpy() for x in vid]
 
 
+#TODO: kann ich einstellen dass ich nur eine person pro frame erkennen will?
+#TODO: was wenn hier keine person erkannt wird?
+#TODO: kann ich coco-person benutzen hierfür? (Glaube ja, weil er das ja nur nutzt um personen zu erkennen, noch nicht um deren pose keypoints zu extrahieren)
+##mmdetection: detectiert Objekte (hier: person) im frame
+#nutzt faster r-cnn (trainiert auf coco-person klasse)
+#gibt bounding boxes zurück [x1, y1, x2, y2, confidence_score]
+#results.append(result): Sammelt alle Detections pro Frame
+# Beispiel für Frame 0:
+# det_results[0] = array([[x1, y1, x2, y2, 0.95],  # Person 1, 95% Konfidenz
+#                         [x1, y1, x2, y2, 0.82]]) # Person 2, 82% Konfidenz
 def detection_inference(model, frames):
     results = []
     for frame in frames:
         result = inference_detector(model, frame)
         results.append(result)
-    return results
+    return results #diese results gehen dann in pose_inference rein
 
 
+#extrahiert 
 def pose_inference(anno_in, model, frames, det_results, compress=False):
+    #Vorbereitung:
     anno = cp.deepcopy(anno_in)
-    assert len(frames) == len(det_results)
+    assert len(frames) == len(det_results) 
+    num_person = max([len(x) for x in det_results]) # # Max. Personen in irgendeinem Frame
     total_frames = len(frames)
-    num_person = max([len(x) for x in det_results])
     anno['total_frames'] = total_frames
     anno['num_person_raw'] = num_person
 
+    #brauche nicht, compress ist standardmäßig auf false, ist dazu da nur die tatsächlich erkannten keypoints zu speichern (und nicht für die nicht-erkannten Nullen zu speichern)
     if compress:
         kp, frame_inds = [], []
         for i, (f, d) in enumerate(zip(frames, det_results)):
@@ -68,20 +83,43 @@ def pose_inference(anno_in, model, frames, det_results, compress=False):
             d = [dict(bbox=x) for x in list(d)]
             pose = inference_top_down_pose_model(model, f, d, format='xyxy')[0]
             for j, item in enumerate(pose):
-                kp.append(item['keypoints'])
-                frame_inds.append(i)
-        anno['keypoint'] = np.stack(kp).astype(np.float16)
-        anno['frame_inds'] = np.array(frame_inds, dtype=np.int16)
+                kp.append(item['keypoints']) # Nur tatsächliche Detections speichern
+                frame_inds.append(i) # Merke Frame-Index
+        anno['keypoint'] = np.stack(kp).astype(np.float16) # (N, 17, 3), N = Summe aller Detections
+        anno['frame_inds'] = np.array(frame_inds, dtype=np.int16)  # (N,)
+    
+    #standardfall: compress = False
     else:
+        # Erstelle festes Array für alle Personen × Frames × 17 Keypoints × 3 (x, y, confidence_score)
+        #für jede person (von num_person) in jedem frame (von total_frames) speichere deren 17 keypoints jewils mit x,y,confidence_score
+        #TODO: ich kann hier ggf die Person-Dimension weglassen (weil nur eine Person pro Video)
+        #TODO: ich habe hier nicht 17 keypoints x 3 (x,y,confidence) sondern 75 keypoints x 3 (oder x4 mit confidence?) (x,y,z)
         kp = np.zeros((num_person, total_frames, 17, 3), dtype=np.float32)
         for i, (f, d) in enumerate(zip(frames, det_results)):
+            # Konvertiere Bounding Boxes zu MMPose-Format
             # Align input format
-            d = [dict(bbox=x) for x in list(d)]
+            d = [dict(bbox=x) for x in list(d)] ## [x1,y1,x2,y2,score] → {'bbox': [x1,y1,x2,y2,score]}
+
+            # Pose-Estimation für alle Personen in diesem Frame
+            # Input:  frame = numpy array (H,W,3)
+            # bboxes = [{'bbox': [x1,y1,x2,y2,score]}, ...]
+            # Output: [{'keypoints': array(17,3)}, ...]  # 17 COCO-Keypoints mit (x,y,conf)
+            #TODO: hier stattdessen mediapipe detection machen
             pose = inference_top_down_pose_model(model, f, d, format='xyxy')[0]
+            # # pose = [{'keypoints': array(17,3)}, {'keypoints': array(17,3)}, ...]
             for j, item in enumerate(pose):
                 kp[j, i] = item['keypoints']
+        
+        ## Trenne x,y und confidence
         anno['keypoint'] = kp[..., :2].astype(np.float16)
+        #TODO: laut pyskl/tools/data/README.md sind keypoint_scores nur für 2D skeletons required, aber ich habe doch 3D skeletons oder nicht? Oder habe ich nur 3D keypoints?
         anno['keypoint_score'] = kp[..., 2].astype(np.float16)
+
+        #Resultat:
+        #anno = {
+            #'keypoint': np.array (num_person, total_frames, 17, 2),  # x,y
+            #'keypoint_score': np.array (num_person, total_frames, 17)  # confidence
+        #}
     return anno
 
 
@@ -120,40 +158,55 @@ def parse_args():
 
 
 def main():
+    #holt sich die argumente aus terminal
     args = parse_args()
     assert args.out.endswith('.pkl')
 
-    lines = mrlines(args.video_list)
-    lines = [x.split() for x in lines]
+    lines = mrlines(args.video_list) #liest die videoliste ein in der "videopath label" steht
+    lines = [x.split() for x in lines] # Teilt jede Zeile in [pfad, label]
 
     # * We set 'frame_dir' as the base name (w/o. suffix) of each video
     assert len(lines[0]) in [1, 2]
-    if len(lines[0]) == 1:
+    if len(lines[0]) == 1:  # Nur Pfad -> brauch ich nciht, meine video_list hat Pfad + Label
         annos = [dict(frame_dir=osp.basename(x[0]).split('.')[0], filename=x[0]) for x in lines]
-    else:
+    else:  # Pfad + Label
+        #stellt sicher dass label ein int ist
         annos = [dict(frame_dir=osp.basename(x[0]).split('.')[0], filename=x[0], label=int(x[1])) for x in lines]
 
+    #prüfen ob ein GPU oder mehrere GPUs, ggf videos gleichmäßig auf GPUs verteilen
+    #brauche nicht unbedingt, weil ich nur eine GPU habe
     if args.non_dist:
-        my_part = annos
+        my_part = annos # Alle Videos auf 1 GPU
         os.makedirs(args.tmpdir, exist_ok=True)
     else:
-        init_dist('pytorch', backend='nccl')
+        init_dist('pytorch', backend='nccl')  # Multi-GPU initialisieren
         rank, world_size = get_dist_info()
         if rank == 0:
             os.makedirs(args.tmpdir, exist_ok=True)
         dist.barrier()
-        my_part = annos[rank::world_size]
+        my_part = annos[rank::world_size] # Jede GPU bekommt Teil der Videos
 
-    det_model = init_detector(args.det_config, args.det_ckpt, 'cuda')
+    #Modelle laden für Personenerkennung und keypoint-pose ectraction
+    #TODO: gucken ob es mediapipe hier schon gibt, sonst muss hinzufügen
+    det_model = init_detector(args.det_config, args.det_ckpt, 'cuda') # Faster R-CNN (Person Detection)
     assert det_model.CLASSES[0] == 'person', 'A detector trained on COCO is required'
-    pose_model = init_pose_model(args.pose_config, args.pose_ckpt, 'cuda')
+    #TODO: hier stattdessen mediapipe detection machen
+    #checkpoint file ist für pre-trained weights, wenn keins angebe mache ich kein pretraining
+    #TODO: prüfen mit und ohne pretraining, weil das pose ist kann wahrsch. nicht coco pretraining nutzen
+    pose_model = init_pose_model(args.pose_config, args.pose_ckpt, 'cuda') # HRNet (Pose Estimation)
 
+    #main part: pose extraction und keypoint extraction durchführen
     results = []
+    #für jedes video:
     for anno in tqdm(my_part):
+        #frames extrahieren
         frames = extract_frame(anno['filename'])
+        #person detection durchführen
         det_results = detection_inference(det_model, frames)
-        # * Get detection results for human
+        # * Get detection results for human (# Nur COCO-Klasse 0 (Person))
         det_results = [x[0] for x in det_results]
+        #Bounding boxes filtern (zu kleine boxes oder zu kleine scores rausfiltern)
+        #TODO: muss ggf noch werte anpassen
         for i, res in enumerate(det_results):
             # * filter boxes with small scores
             res = res[res[:, 4] >= args.det_score_thr]
@@ -165,13 +218,17 @@ def main():
 
         shape = frames[0].shape[:2]
         anno['img_shape'] = shape
+        #pose-keypoints extracton
         anno = pose_inference(anno, pose_model, frames, det_results, compress=args.compress)
+        #entferne Pfad (weil nicht mehr nötig)
         anno.pop('filename')
         results.append(anno)
 
+    #speichern (je nachdmem ob single oder multi-GPU)
     if args.non_dist:
-        mmcv.dump(results, args.out)
+        mmcv.dump(results, args.out) # Speichert direkt wlasl300_annos.pkl
     else:
+        # Multi-GPU: Jede GPU speichert Teil
         mmcv.dump(results, osp.join(args.tmpdir, f'part_{rank}.pkl'))
         dist.barrier()
 
@@ -188,6 +245,20 @@ def main():
             ordered_results = ordered_results[:len(annos)]
             mmcv.dump(ordered_results, args.out)
 
+
+# wlasl300_annos.pkl enthält Liste von:
+""" [
+  {
+    'frame_dir': '12320',
+    'label': 'book',
+    'img_shape': (1080, 1920),
+    'total_frames': 120,
+    'num_person_raw': 1,
+    'keypoint': array (1, 120, 17, 2),
+    'keypoint_score': array (1, 120, 17)
+  },
+  {...}, ...
+] """
 
 if __name__ == '__main__':
     main()
