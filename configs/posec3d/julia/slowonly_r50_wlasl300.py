@@ -32,10 +32,10 @@ ann_file = 'julia/WLASL300/pyskl_mediapipe_annos.pkl' #TODO
 train_pipeline = [
     dict(type='UniformSampleFrames', clip_len=48),
     dict(type='PoseDecode'),
+    dict(type='KeypointTo2D'), #remove 3d-coordinate of keypoints
     dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
-    #no resizing 
-    #dict(type='Resize', scale=(-1, 64)),
-    #dict(type='RandomResizedCrop', area_range=(0.56, 1.0)),
+    dict(type='Resize', scale=(-1, 64)),
+    dict(type='RandomResizedCrop', area_range=(0.56, 1.0)),
     dict(type='Resize', scale=(56, 56), keep_ratio=False),
     #remove flipping
     #dict(type='Flip', flip_ratio=0.5, left_kp=left_kp, right_kp=right_kp),
@@ -47,6 +47,7 @@ train_pipeline = [
 val_pipeline = [
     dict(type='UniformSampleFrames', clip_len=48, num_clips=1),
     dict(type='PoseDecode'),
+    dict(type='KeypointTo2D'), #remove 3d-coordinate of keypoints
     dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
     dict(type='Resize', scale=(64, 64), keep_ratio=False),
     dict(type='GeneratePoseTarget', with_kp=True, with_limb=False),
@@ -57,6 +58,7 @@ val_pipeline = [
 test_pipeline = [
     dict(type='UniformSampleFrames', clip_len=48, num_clips=10),
     dict(type='PoseDecode'),
+    dict(type='KeypointTo2D'), #remove 3d-coordinate of keypoints
     dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
     dict(type='Resize', scale=(64, 64), keep_ratio=False),
     dict(type='GeneratePoseTarget', with_kp=True, with_limb=False, double=False), #add: double=True, left_kp=left_kp, right_kp=right_kp to double the test data by flipping it horizontally
@@ -84,4 +86,4 @@ checkpoint_config = dict(interval=1)
 evaluation = dict(interval=1, metrics=['top_k_accuracy', 'mean_class_accuracy'], topk=(1, 5))
 log_config = dict(interval=20, hooks=[dict(type='TextLoggerHook')])
 log_level = 'INFO'
-work_dir = './work_dirs/posec3d/slowonly_r50_gym/joint' #TODO
+work_dir = './work_dirs/julia/mediapipe_wlasl300' #TODO
