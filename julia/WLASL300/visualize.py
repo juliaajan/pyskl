@@ -45,6 +45,25 @@ def load_frames(vid):
     return images
 
 
+#DEBUG:
+def load_frames_from_video(video_path):
+    frames = []
+    vidcap = cv2.VideoCapture(video_path)
+    while vidcap.isOpened():
+        success, img = vidcap.read()
+        if not success:
+            break
+        #OpenCV opens in BGR, but mediapipe expects RGB, so convert from BGR to RGB
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        #optional: resize frame
+        # img = cv2.resize(img, (640, 480))
+        frames.append(img)
+
+    vidcap.release()
+    # cv2.destroyAllWindows()
+    return np.asarray(frames)
+
+
 # Visualize 2D Skeletons with the original RGB Video
 def display_keypoints_on_video(anno_pickle_path, path_video, output_path):
     annotations = load(anno_pickle_path)
@@ -60,6 +79,11 @@ def display_keypoints_on_video(anno_pickle_path, path_video, output_path):
     if anno is None:
         raise ValueError(f"Video {video_id} not found in annotation pickle file.")
 
+
+    #DEBUG:
+    frames = load_frames_from_video(path_video)
+    shape = frames[0].shape[:2]
+    print("SHAPE FROM VIDEO", shape)
 
     video = Vis2DPoseMediaPipe(
     anno, 
@@ -77,7 +101,7 @@ def display_keypoints_on_video(anno_pickle_path, path_video, output_path):
 
 
 
-def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(540, 960), fps=24, video=None, 
+def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(1080, 1920), fps=24, video=None, 
                        show_face=True, show_hands=True, show_body=True):
     tx = cp.deepcopy(item)
     item = tx
@@ -118,8 +142,17 @@ def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(540, 960), fps=24, video=None,
     img_shape = item.get('img_shape', out_shape)
     img_height, img_width = img_shape[0], img_shape[1]
     out_height, out_width = out_shape[0], out_shape[1]
+    print("DEBUG: Original img_shape:", img_shape)
+    print(f"DEBUG: Scaling from img_shape=({img_height}, {img_width}) to out_shape=({out_height}, {out_width})")
+    print(f"DEBUG: Before scaling - x range: [{kp[..., 0].min():.3f}, {kp[..., 0].max():.3f}]")
+    print(f"DEBUG: Before scaling - y range: [{kp[..., 1].min():.3f}, {kp[..., 1].max():.3f}]")
+    
+    kp = kp.copy()
     kp[..., 0] *= out_width / img_width
     kp[..., 1] *= out_height / img_height
+    print(f"DEBUG: After scaling - x range: [{kp[..., 0].min():.1f}, {kp[..., 0].max():.1f}]")
+    print(f"DEBUG: After scaling - y range: [{kp[..., 1].min():.1f}, {kp[..., 1].max():.1f}]")
+
 
     #prepare keypoints per frame
     kps = [kp[:, i] for i in range(total_frames)]
@@ -138,7 +171,7 @@ def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(540, 960), fps=24, video=None,
     }
 
 
-    #temporal debug code 
+    #DEBUG: temporal debug code 
     for i in range(min(5, total_frames)):  # Erste 5 Frames
         kp_frame = kps[i]
         ske = kp_frame[0]
