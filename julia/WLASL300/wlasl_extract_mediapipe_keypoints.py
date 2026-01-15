@@ -189,7 +189,6 @@ def process_single_video(anno):
         anno['original_shape'] = shape
         
         anno = mediapipe_inference(anno, frames)
-        anno.pop('filename')
         return anno
     except Exception as e:
         print(f"ERROR processing {anno['filename']}: {e}")
@@ -285,10 +284,42 @@ if __name__ == "__main__":
     results = [r for r in results if r is not None]
     print(f"Successfully processed {len(results)}/{len(annos)} videos")
 
+    #create the split dict
+    split_dict = {}
+    for anno in results:
+        #extract split from filename path
+        filename = anno['filename']
+        path_parts = filename.replace('\\', '/').split('/')
+        
+        #find train/test/path in folder structure (only works because WLASL300 splits videos in train/test/val folders)
+        split_name = None
+        for part in path_parts:
+            if part in ['train', 'test', 'val']:
+                split_name = part
+                break
+        if split_name is None:
+            raise ValueError(f"Could not determine split for {filename}, no train/test/val folder found in path")
+        #append the video_id (frame_dir) to the corresponding split list
+        if split_name not in split_dict:
+            split_dict[split_name] = []
+        split_dict[split_name].append(anno['frame_dir'])
+
+        #remove the filename field from the anno file
+        anno.pop('filename')
+
+        #final annotation file with split and annotations
+        output_dict = {
+            'split': split_dict,
+            'annotations': results
+        }
+
+
     #save results
     output_file= os.path.join(args.output_path, "pyskl_mediapipe_annos.pkl")
-    dump(results, output_file)
+    dump(output_dict, output_file)
     print(f"Saved annotations to: {output_file}")
+    print(f"Split distribution: {[(k, len(v)) for k, v in split_dict.items()]}")
+
 
 
 #############################------
