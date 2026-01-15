@@ -234,6 +234,24 @@ def mediapipe_inference(anno_in, frames):
 
 
 
+def create_label_mapping(lines):
+    #get all unique labels from the video list (lines contains path + label)
+    unique_labels = sorted(set(x[1] for x in lines))
+    
+    #map each lapelname to an int
+    label_to_int = {label: idx for idx, label in enumerate(unique_labels)}
+
+    #save as txt file
+    label_mapping_file = os.path.join(args.output_path, "label_mapping.txt")
+    with open(label_mapping_file, 'w') as f:
+        for label, idx in label_to_int.items():
+            f.write(f"{idx}\t{label}\n")
+    
+    print(f"Found {len(unique_labels)} unique labels")
+    print(f"Saved label mapping to: {label_mapping_file}")
+    
+    return label_to_int
+
 
 
 ##################main#############
@@ -270,8 +288,9 @@ if __name__ == "__main__":
         if len(line) != 2:
             raise ValueError(f"Line {i} must have 2 elements (path + label), got {len(line)}: {line}")
 
-    #TODO: ggf muss label in int umgewandelt werden, entweder hier oder in dem .list file, dann mit label=int(x[1]) sicherstellen
-    annos = [dict(frame_dir=os.path.basename(x[0]).split('.')[0], filename=x[0], label=x[1]) for x in lines]
+    #convert the label from string to int
+    label_to_int = create_label_mapping(lines)
+    annos = [dict(frame_dir=os.path.basename(x[0]).split('.')[0], filename=x[0], label=label_to_int[x[1]]) for x in lines]
 
     print(f"Start processing {len(annos)} videos")
 
