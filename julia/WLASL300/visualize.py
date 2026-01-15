@@ -138,7 +138,7 @@ def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(540, 960), fps=24, video=None,
     }
 
 
-    #temporal debug code
+    #temporal debug code 
     for i in range(min(5, total_frames)):  # Erste 5 Frames
         kp_frame = kps[i]
         ske = kp_frame[0]
