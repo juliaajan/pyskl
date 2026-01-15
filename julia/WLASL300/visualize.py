@@ -140,19 +140,25 @@ def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(1080, 1920), fps=24, video=Non
     #scale keypoints to output shape
     assert kp.shape[-1] in [3, 4], f"Expected 3 or 4 coords, got {kp.shape[-1]}"
     img_shape = item.get('img_shape', out_shape)
-    img_height, img_width = img_shape[0], img_shape[1]
+    #img_height, img_width = img_shape[0], img_shape[1]
     out_height, out_width = out_shape[0], out_shape[1]
     print("DEBUG: Original img_shape:", img_shape)
-    print(f"DEBUG: Scaling from img_shape=({img_height}, {img_width}) to out_shape=({out_height}, {out_width})")
+    #print(f"DEBUG: Scaling from img_shape=({img_height}, {img_width}) to out_shape=({out_height}, {out_width})")
     print(f"DEBUG: Before scaling - x range: [{kp[..., 0].min():.3f}, {kp[..., 0].max():.3f}]")
     print(f"DEBUG: Before scaling - y range: [{kp[..., 1].min():.3f}, {kp[..., 1].max():.3f}]")
     
-    kp = kp.copy()
-    kp[..., 0] *= out_width / img_width
-    kp[..., 1] *= out_height / img_height
+    #clip keypoints to range [0,1]
+    kp[..., 0] = np.clip(kp[..., 0], 0.0, 1.0)
+    kp[..., 1] = np.clip(kp[..., 1], 0.0, 1.0)
+    print(f"DEBUG: After clipping - x range: [{kp[..., 0].min():.3f}, {kp[..., 0].max():.3f}]")
+    print(f"DEBUG: After clipping - y range: [{kp[..., 1].min():.3f}, {kp[..., 1].max():.3f}]")
+
+    #transform keypoints to output video size and sve them (instead of in area between 0 and 1)
+    kp[..., 0] *= out_width #out_width / img_width
+    kp[..., 1] *= out_height #out_height / img_height
+    
     print(f"DEBUG: After scaling - x range: [{kp[..., 0].min():.1f}, {kp[..., 0].max():.1f}]")
     print(f"DEBUG: After scaling - y range: [{kp[..., 1].min():.1f}, {kp[..., 1].max():.1f}]")
-
 
     #prepare keypoints per frame
     kps = [kp[:, i] for i in range(total_frames)]
