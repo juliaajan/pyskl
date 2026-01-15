@@ -78,14 +78,15 @@ def display_keypoints_on_video(anno_pickle_path, path_video, output_path):
 
 
 def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(540, 960), fps=24, video=None, 
-                       show_face=False, show_hands=True, show_body=True):
+                       show_face=True, show_hands=True, show_body=True):
     tx = cp.deepcopy(item)
     item = tx
 
     if isinstance(item, str):
         item = load(item)
 
-    kp = item['keypoint']
+    kp = item['keypoint'] #shape: (1, 95, 543, 3)
+    print("Keypoint shape:", kp.shape)
 
     num_keypoints = kp.shape[-2]
     #check if face is included
@@ -93,16 +94,14 @@ def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(540, 960), fps=24, video=None,
     
     if 'keypoint_score' in item:
         kpscore = item['keypoint_score']
+        print("Keypoint score shape:", kpscore.shape)
+        #concatenate the keypoint scores to kp
         kp = np.concatenate([kp, kpscore[..., None]], -1)
 
     total_frames = None
-    if len(kp.shape) == 4:
-        total_frames = item.get('total_frames', kp.shape[1])
-    else:
-        assert len(kp.shape) == 3
-        assert 'frame_inds' in item
-        frame_inds = item['frame_inds']
-        total_frames = max(frame_inds)
+    assert len(kp.shape) == 4, f"Expected 4 dimensions for each keypoint, got {len(kp.shape)}"
+    total_frames = item.get('total_frames', kp.shape[1])
+
 
     #load video frames
     if video is None:
@@ -117,16 +116,14 @@ def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(540, 960), fps=24, video=None,
     #scale keypoints to output shape
     assert kp.shape[-1] in [3, 4], f"Expected 3 or 4 coords, got {kp.shape[-1]}"
     img_shape = item.get('img_shape', out_shape)
-    kp[..., 0] *= out_shape[1] / img_shape[1]
-    kp[..., 1] *= out_shape[0] / img_shape[0]
+    img_height, img_width = img_shape[0], img_shape[1]
+    out_height, out_width = out_shape[0], out_shape[1]
+    kp[..., 0] *= out_width / img_width
+    kp[..., 1] *= out_height / img_height
 
     #prepare keypoints per frame
-    if len(kp.shape) == 4:
-        kps = [kp[:, i] for i in range(total_frames)]
-    else:
-        kps = []
-        for i in range(total_frames):
-            kps.append(kp[frame_inds == (i + 1)])
+    kps = [kp[:, i] for i in range(total_frames)]
+
 
     body_edges = skeleton_map['mediapipe_body']
     hand_edges = skeleton_map['mediapipe_hand']
@@ -140,6 +137,16 @@ def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(540, 960), fps=24, video=None,
         'f': ((0x8d, 0x99, 0xae), (0x2b, 0x2d, 0x42))
     }
 
+
+    #temporal debug code
+    for i in range(min(5, total_frames)):  # Erste 5 Frames
+        kp_frame = kps[i]
+        ske = kp_frame[0]
+        print(f"\nFrame {i}:")
+        print(f"  Nose (kp 0): x={ske[0][0]:.1f}, y={ske[0][1]:.1f}, conf={ske[0][3]:.3f}")
+        print(f"  Left wrist (kp 15): x={ske[15][0]:.1f}, y={ske[15][1]:.1f}, conf={ske[15][3]:.3f}")
+        print(f"  Right wrist (kp 16): x={ske[16][0]:.1f}, y={ske[16][1]:.1f}, conf={ske[16][3]:.3f}")
+
     for i in tqdm(range(total_frames)):
         kp_frame = kps[i]
         for m in range(kp_frame.shape[0]):  # For each person
@@ -150,7 +157,7 @@ def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(540, 960), fps=24, video=None,
                 for st, ed, co in body_edges:
                     j1, j2 = ske[st], ske[ed]
                     j1x, j1y, j2x, j2y = int(j1[0]), int(j1[1]), int(j2[0]), int(j2[1])
-                    #set the confidence
+                    #set the confidence (was appended from keyypoint_score to kp)
                     if kp.shape[-1] == 4:
                         conf = min(j1[3], j2[3])  #index 3 = confidence score
                     else:
