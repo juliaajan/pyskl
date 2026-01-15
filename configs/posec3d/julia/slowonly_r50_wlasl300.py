@@ -4,9 +4,9 @@ N_BODY_LANDMARKS = 33
 N_HAND_LANDMARKS = 21 #x2 for both hands
 
 model = dict(
-    type='Recognizer3D', #?
+    type='Recognizer3D', #
     backbone=dict(
-        type='ResNet3dSlowOnly', #?
+        type='ResNet3dSlowOnly', #
         in_channels=N_FACE_LANDMARKS + N_BODY_LANDMARKS + 2 * N_HAND_LANDMARKS, #number of keypoints, 543
         base_channels=32,
         num_stages=3,
@@ -33,10 +33,12 @@ train_pipeline = [
     dict(type='UniformSampleFrames', clip_len=48),
     dict(type='PoseDecode'),
     dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
-    dict(type='Resize', scale=(-1, 64)),
-    dict(type='RandomResizedCrop', area_range=(0.56, 1.0)),
+    #no resizing 
+    #dict(type='Resize', scale=(-1, 64)),
+    #dict(type='RandomResizedCrop', area_range=(0.56, 1.0)),
     dict(type='Resize', scale=(56, 56), keep_ratio=False),
-    #dict(type='Flip', flip_ratio=0.5, left_kp=left_kp, right_kp=right_kp), #remove flipping
+    #remove flipping
+    #dict(type='Flip', flip_ratio=0.5, left_kp=left_kp, right_kp=right_kp),
     dict(type='GeneratePoseTarget', with_kp=True, with_limb=False), #with_limb kontrolliert ob heatmap nur aus punkten (keypoints) oder auch verbindungen zwischen den kps generiert
     dict(type='FormatShape', input_format='NCTHW_Heatmap'),
     dict(type='Collect', keys=['imgs', 'label'], meta_keys=[]),
