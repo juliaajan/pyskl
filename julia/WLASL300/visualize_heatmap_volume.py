@@ -115,9 +115,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     ann_file = args.ann_file
-    output_dir = args.output_dir
     category_mappings = args.category_mappings
     video_file = args.video_file
+    output_dir = args.output_dir
+
 
 
 
@@ -183,13 +184,13 @@ if __name__ == '__main__':
     print("Found annotation for video:", video_file)
 
     # Visualize Skeleton
-    print(f"Creating skeleton visualization for {anno['frame_dir']}...")
-    vis_frames = vis_skeleton(video_file, cp.deepcopy(anno), wlasl_categories[anno['label']])
-    vid = mpy.ImageSequenceClip(vis_frames, fps=24)
+    #print(f"Creating skeleton visualization for {anno['frame_dir']}...")
+    #vis_frames = vis_skeleton(video_file, cp.deepcopy(anno), wlasl_categories[anno['label']])
+    #vid = mpy.ImageSequenceClip(vis_frames, fps=24)
     #save as video
-    skeleton_output = osp.join(output_dir, f'{anno["frame_dir"]}_skeleton.mp4')
-    vid.write_videofile(skeleton_output, codec='libx264', audio=False, logger=None)
-    print(f"Saved skeleton video: {skeleton_output}")
+    #skeleton_output = osp.join(output_dir, f'{anno["frame_dir"]}_skeleton.mp4')
+    #vid.write_videofile(skeleton_output, codec='libx264', audio=False, logger=None)
+    #print(f"Saved skeleton video: {skeleton_output}")
 
 
     #create heatmap
