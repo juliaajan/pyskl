@@ -126,6 +126,7 @@ if __name__ == '__main__':
     #TODO prüfen
     keypoint_pipeline = [
         dict(type='PoseDecode'),
+        dict(type='KeypointTo2D'), #remove z-axis coordinate from mediapipe
         dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
         dict(type='Resize', scale=(-1, 64)),
         dict(type='CenterCrop', crop_size=64),
@@ -135,6 +136,7 @@ if __name__ == '__main__':
     #TODO prüfen
     limb_pipeline = [
         dict(type='PoseDecode'),
+        dict(type='KeypointTo2D'), #remove z-axis coordinate from mediapipe
         dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
         dict(type='Resize', scale=(-1, 64)),
         dict(type='CenterCrop', crop_size=64),
