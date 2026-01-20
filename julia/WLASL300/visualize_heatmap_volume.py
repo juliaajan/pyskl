@@ -127,6 +127,7 @@ if __name__ == '__main__':
     keypoint_pipeline = [
         dict(type='PoseDecode'),
         dict(type='KeypointTo2D'), #remove z-axis coordinate from mediapipe
+        dict(type='DeNormalizeKeypoints'),  #denormalize mediapipe keypoints from [0, 1] to original image shape
         dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
         dict(type='Resize', scale=(-1, 64)),
         dict(type='CenterCrop', crop_size=64),
@@ -137,6 +138,7 @@ if __name__ == '__main__':
     limb_pipeline = [
         dict(type='PoseDecode'),
         dict(type='KeypointTo2D'), #remove z-axis coordinate from mediapipe
+        dict(type='DeNormalizeKeypoints'),  #denormalize mediapipe keypoints from [0, 1] to original image shape
         dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
         dict(type='Resize', scale=(-1, 64)),
         dict(type='CenterCrop', crop_size=64),

@@ -8,3 +8,4 @@ from .multi_modality import *  # noqa: F401, F403
 from .pose_related import *  # noqa: F401, F403
 from .sampling import *  # noqa: F401, F403
 from .pose_transforms import KeypointTo2D
+from .denormalize import DeNormalizeKeypoints
