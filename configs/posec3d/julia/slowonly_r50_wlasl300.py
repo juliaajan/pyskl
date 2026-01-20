@@ -35,9 +35,9 @@ train_pipeline = [
     dict(type='KeypointTo2D'), #remove 3d-coordinate of keypoints
     dict(type='DeNormalizeKeypoints'),  #denormalize mediapipe keypoints from [0, 1] to original image shape
     dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
-    #dict(type='Resize', scale=(-1, 64)),
-    #dict(type='RandomResizedCrop', area_range=(0.56, 1.0)),
-    #dict(type='Resize', scale=(56, 56), keep_ratio=False),
+    dict(type='Resize', scale=(-1, 64)),
+    dict(type='RandomResizedCrop', area_range=(0.56, 1.0)),
+    dict(type='Resize', scale=(56, 56), keep_ratio=False),
     #remove flipping
     #dict(type='Flip', flip_ratio=0.5, left_kp=left_kp, right_kp=right_kp),
     dict(type='GeneratePoseTarget', with_kp=True, with_limb=False), #with_limb kontrolliert ob heatmap nur aus punkten (keypoints) oder auch verbindungen zwischen den kps generiert
@@ -51,7 +51,7 @@ val_pipeline = [
     dict(type='KeypointTo2D'), #remove 3d-coordinate of keypoints
     dict(type='DeNormalizeKeypoints'),  #denormalize mediapipe keypoints from [0, 1] to original image shape
     dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
-    #dict(type='Resize', scale=(64, 64), keep_ratio=False),
+    dict(type='Resize', scale=(64, 64), keep_ratio=False),
     dict(type='GeneratePoseTarget', with_kp=True, with_limb=False),
     dict(type='FormatShape', input_format='NCTHW_Heatmap'),
     dict(type='Collect', keys=['imgs', 'label'], meta_keys=[]),
@@ -63,7 +63,7 @@ test_pipeline = [
     dict(type='KeypointTo2D'), #remove 3d-coordinate of keypoints
     dict(type='DeNormalizeKeypoints'),  #denormalize mediapipe keypoints from [0, 1] to original image shape
     dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
-    #dict(type='Resize', scale=(64, 64), keep_ratio=False),
+    dict(type='Resize', scale=(64, 64), keep_ratio=False),
     dict(type='GeneratePoseTarget', with_kp=True, with_limb=False, double=False), #add: double=True, left_kp=left_kp, right_kp=right_kp to double the test data by flipping it horizontally
     dict(type='FormatShape', input_format='NCTHW_Heatmap'),
     dict(type='Collect', keys=['imgs', 'label'], meta_keys=[]),
@@ -80,7 +80,7 @@ data = dict(
     val=dict(type=dataset_type, ann_file=ann_file, split='val', pipeline=val_pipeline), #val split
     test=dict(type=dataset_type, ann_file=ann_file, split='test', pipeline=test_pipeline)) #test split
 # optimizer
-optimizer = dict(type='SGD', lr=0.1, momentum=0.9, weight_decay=0.0003)
+optimizer = dict(type='SGD', lr=0.4, momentum=0.9, weight_decay=0.0003)
 optimizer_config = dict(grad_clip=dict(max_norm=40, norm_type=2))
 # learning policy
 lr_config = dict(policy='CosineAnnealing', by_epoch=False, min_lr=0)
