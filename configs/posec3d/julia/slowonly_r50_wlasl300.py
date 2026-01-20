@@ -33,6 +33,7 @@ train_pipeline = [
     dict(type='UniformSampleFrames', clip_len=48),
     dict(type='PoseDecode'),
     dict(type='KeypointTo2D'), #remove 3d-coordinate of keypoints
+    dict(type='DeNormalizeKeypoints'),  #denormalize mediapipe keypoints from [0, 1] to original image shape
     dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
     #dict(type='Resize', scale=(-1, 64)),
     #dict(type='RandomResizedCrop', area_range=(0.56, 1.0)),
@@ -48,6 +49,7 @@ val_pipeline = [
     dict(type='UniformSampleFrames', clip_len=48, num_clips=1),
     dict(type='PoseDecode'),
     dict(type='KeypointTo2D'), #remove 3d-coordinate of keypoints
+    dict(type='DeNormalizeKeypoints'),  #denormalize mediapipe keypoints from [0, 1] to original image shape
     dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
     #dict(type='Resize', scale=(64, 64), keep_ratio=False),
     dict(type='GeneratePoseTarget', with_kp=True, with_limb=False),
@@ -59,6 +61,7 @@ test_pipeline = [
     dict(type='UniformSampleFrames', clip_len=48, num_clips=10),
     dict(type='PoseDecode'),
     dict(type='KeypointTo2D'), #remove 3d-coordinate of keypoints
+    dict(type='DeNormalizeKeypoints'),  #denormalize mediapipe keypoints from [0, 1] to original image shape
     dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
     #dict(type='Resize', scale=(64, 64), keep_ratio=False),
     dict(type='GeneratePoseTarget', with_kp=True, with_limb=False, double=False), #add: double=True, left_kp=left_kp, right_kp=right_kp to double the test data by flipping it horizontally
