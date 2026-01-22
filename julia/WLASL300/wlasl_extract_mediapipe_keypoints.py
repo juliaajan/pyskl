@@ -27,7 +27,7 @@ mp_holistic = mp.solutions.holistic
 
 N_FACE_LANDMARKS = 468
 N_BODY_LANDMARKS = 33
-N_HAND_LANDMARKS = 21
+N_HAND_LANDMARKS = 21 #this number must be doubles for both hands
 
 #Counter: Zählt verarbeitete Videos über mehrere parallele Prozesse hinweg.
 #RawValue: Shared Memory (alle Prozesse sehen denselben Wert).
@@ -212,7 +212,7 @@ def mediapipe_inference(anno_in, frames):
     # Keep all 543 keypoints (body + face + hands)
     keypoints = pose_kps
     confidences = pose_confs
-    num_keypoints = N_FACE_LANDMARKS + N_BODY_LANDMARKS + N_HAND_LANDMARKS #543
+    #num_keypoints = 543
     #else:
         # Only body + hands (75 keypoints)
        # body_kps = np.concatenate([pose_kps[:, :33, :], pose_kps[:, 501:, :]], axis=1)

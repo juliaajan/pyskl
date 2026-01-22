@@ -80,6 +80,7 @@ def vis_skeleton(vid_path, anno, category_name=None, ratio=0.5):
     vis_frames = []
 
     # we need an instance of TopDown model, so build a minimal one
+    #TODO: was passiert hier?
     model = TopDown(backbone=dict(type='ShuffleNetV1'))
 
     for f, kp in zip(frames, kps):
