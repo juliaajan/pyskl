@@ -80,11 +80,11 @@ def load_frames_from_video(video_path):
 #stattdessen: mediapipe_inference
 #def gen_keypoints_for_frames(frames, save_path):
 #    #alle keypoints holen (body und rest)
-#    pose_kps, pose_confs = get_holistic_keypoints(frames) # pose_kps.shape = (T, 543, 2) — alle Keypoints (Body + Face + Hands)
+#    pose_kps, pose_confs = get_holistic_keypoints(frames) # pose_kps.shape = (T, 75, 2) — alle Keypoints (Body + Face + Hands)
 #    
 #    #TODO: das hier wegnehmen, will face behalten
 #    #gesichts keypoits und confidences entfernen, nur Hände und Körper behalten
-#    body_kps = np.concatenate([pose_kps[:, :33, :], pose_kps[:, 501:, :]], axis=1) # pose_confs.shape = (T, 543) — Confidences
+#    body_kps = np.concatenate([pose_kps[:, :33, :], pose_kps[:, 501:, :]], axis=1) # pose_confs.shape = (T, 75) — Confidences
 #    confs = np.concatenate([pose_confs[:, :33], pose_confs[:, 501:]], axis=1)
 #
 #    #TODO: ändern wie der hier speichert
@@ -119,17 +119,17 @@ def get_holistic_keypoints(frames):
         results = holistic.process(frame)
 
         body_data, body_conf = process_body_landmarks(results.pose_landmarks, N_BODY_LANDMARKS, img_shape)
-        face_data, face_conf = process_other_landmarks(results.face_landmarks, N_FACE_LANDMARKS, img_shape)
+        #face_data, face_conf = process_other_landmarks(results.face_landmarks, N_FACE_LANDMARKS, img_shape)
         lh_data, lh_conf = process_other_landmarks(results.left_hand_landmarks, N_HAND_LANDMARKS, img_shape)
         rh_data, rh_conf = process_other_landmarks(results.right_hand_landmarks, N_HAND_LANDMARKS, img_shape)
 
 
 
         #führe alle generierten keypoints und conf scores zusammen
-        data = np.concatenate([body_data, face_data, lh_data, rh_data])
-        # data.shape = (543, 2) = 33+468+21+21 with (x, y) each
-        conf = np.concatenate([body_conf, face_conf, lh_conf, rh_conf])
-        # conf.shape = (543,)
+        data = np.concatenate([body_data, lh_data, rh_data])
+        # data.shape = (75, 2) = 33+21+21 with (x, y) each
+        conf = np.concatenate([body_conf, lh_conf, rh_conf])
+        # conf.shape = (75,)
 
         keypoints.append(data)
         confs.append(conf)
@@ -140,8 +140,8 @@ def get_holistic_keypoints(frames):
     gc.collect()  # Force Garbage Collection
 
     #konvertiert von Liste zu np Array (hier sind kp und confs für ALLE frames)
-    keypoints = np.stack(keypoints) # (T, 543, 2) — T Frames, 543 Keypoints, 2 Koordinaten (x,y)
-    confs = np.stack(confs) # (T, 543) — Confidence pro Keypoint
+    keypoints = np.stack(keypoints) # (T, 75, 2) — T Frames, 75 Keypoints, 2 Koordinaten (x,y)
+    confs = np.stack(confs) # (T, 75) — Confidence pro Keypoint
     return keypoints, confs
 
 
@@ -216,13 +216,13 @@ def mediapipe_inference(anno_in, frames):
     anno['num_person_raw'] = 1 #assume one person per video in SLR
     
     # Extract keypoints
-    pose_kps, pose_confs = get_holistic_keypoints(frames)  # (T, 543, 2), (T, 543)
+    pose_kps, pose_confs = get_holistic_keypoints(frames)  # (T, 75, 2), (T, 75)
     
     #if keep_face:
-    # Keep all 543 keypoints (body + face + hands)
+    # Keep all 75 keypoints (body + face + hands)
     keypoints = pose_kps
     confidences = pose_confs
-    #num_keypoints = 543
+    #num_keypoints = 75
     #else:
         # Only body + hands (75 keypoints)
        # body_kps = np.concatenate([pose_kps[:, :33, :], pose_kps[:, 501:, :]], axis=1)
@@ -344,7 +344,7 @@ if __name__ == "__main__":
 
 
     #save results
-    output_file= os.path.join(args.output_path, "pyskl_mediapipe_annos_2d_denormalized.pkl")
+    output_file= os.path.join(args.output_path, "pyskl_mediapipe_annos_2d_denormalized_NOFACE.pkl")
     dump(output_dict, output_file)
     print(f"Saved annotations to: {output_file}")
     print(f"Split distribution: {[(k, len(v)) for k, v in split_dict.items()]}")
