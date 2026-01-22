@@ -66,17 +66,18 @@ def vis_skeleton(vid_path, anno, category_name=None, ratio=0.5):
     vid = decord.VideoReader(vid_path)
     frames = [x.asnumpy() for x in vid]
     
-    h, w, _ = frames[0].shape
-    new_shape = (int(w * ratio), int(h * ratio))
-    frames = [cv2.resize(f, new_shape) for f in frames]
+    original_shape = frames[0].shape[:2] #(height, width)
+    out_shape = (int(original_shape[1] * ratio), int(original_shape[0] * ratio)) 
+    #resize each frame
+    frames = [cv2.resize(f, out_shape) for f in frames]
     
     assert len(frames) == anno['total_frames']
     #TODO: stimmt die shape hier?
-    # The shape is N x T x K x 3
+    #shape=(MxTxVxC) with C=(x, y)
     kps = np.concatenate([anno['keypoint'], anno['keypoint_score'][..., None]], axis=-1)
+    #shape=(MxTxVxC) with C=(x, y, score)
     kps[..., :2] *= ratio
-    # Convert to T x N x K x 3
-    kps = kps.transpose([1, 0, 2, 3])
+    kps = kps.transpose([1, 0, 2, 3]) #shape=(TxMxVxC)
     vis_frames = []
 
     # we need an instance of TopDown model, so build a minimal one
@@ -99,13 +100,6 @@ def vis_skeleton(vid_path, anno, category_name=None, ratio=0.5):
 
 
 if __name__ == '__main__':
-    # We assume the annotation is already prepared
-    #ann_file = '../data/gym/gym_hrnet.pkl' #TODO
-    #output_dir = ''#TODO
-    #category_mappings = #TODO
-    #video_file = 'C:/path/to/your/wlasl/videos/1234.mp4'  # TODO: ANPASSEN!
-
-
     #get parser arguments
     parser = argparse.ArgumentParser(
         description='Visualise heatmaps')
@@ -121,25 +115,16 @@ if __name__ == '__main__':
     output_dir = args.output_dir
 
 
-
-
-
-    #TODO prüfen
     keypoint_pipeline = [
         dict(type='PoseDecode'),
-        dict(type='KeypointTo2D'), #remove z-axis coordinate from mediapipe
-        dict(type='DeNormalizeKeypoints'),  #denormalize mediapipe keypoints from [0, 1] to original image shape
         dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
         dict(type='Resize', scale=(-1, 64)),
         dict(type='CenterCrop', crop_size=64),
         dict(type='GeneratePoseTarget', with_kp=True, with_limb=False)
     ]
 
-    #TODO prüfen
     limb_pipeline = [
         dict(type='PoseDecode'),
-        dict(type='KeypointTo2D'), #remove z-axis coordinate from mediapipe
-        dict(type='DeNormalizeKeypoints'),  #denormalize mediapipe keypoints from [0, 1] to original image shape
         dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
         dict(type='Resize', scale=(-1, 64)),
         dict(type='CenterCrop', crop_size=64),
@@ -204,7 +189,7 @@ if __name__ == '__main__':
     keypoint_mapvis = [add_label(f, wlasl_categories[anno['label']]) for f in keypoint_mapvis]
     vid = mpy.ImageSequenceClip(keypoint_mapvis, fps=24)
     #save as video
-    heatmap_output = osp.join(output_dir, f'{anno["frame_dir"]}_keypoint_heatmap.mp4')
+    heatmap_output = osp.join(output_dir, f'{anno["frame_dir"]}_keypoint_2d_denorm_heatmap.mp4')
     vid.write_videofile(heatmap_output, codec='libx264', audio=False, logger=None)
     print(f"Saved heatmap video: {heatmap_output}")
 
@@ -214,6 +199,6 @@ if __name__ == '__main__':
     limb_mapvis = [add_label(f, wlasl_categories[anno['label']]) for f in limb_mapvis]
     vid = mpy.ImageSequenceClip(limb_mapvis, fps=24)
     #save as video
-    limb_output = osp.join(output_dir, f'{anno["frame_dir"]}_limb_heatmap.mp4')
+    limb_output = osp.join(output_dir, f'{anno["frame_dir"]}_limb_2d_denorm_heatmap.mp4')
     vid.write_videofile(limb_output, codec='libx264', audio=False, logger=None)
     print(f"Saved limb heatmap video: {limb_output}")

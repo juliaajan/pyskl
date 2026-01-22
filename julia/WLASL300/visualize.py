@@ -47,7 +47,8 @@ def load_frames(vid):
 
 # Visualize 2D Skeletons with the original RGB Video
 def display_keypoints_on_video(anno_pickle_path, path_video, output_path):
-    annotations = load(anno_pickle_path)
+    data = load(anno_pickle_path)
+    annotations = data['annotations']
 
     #extract the video_id from the given video path
     #and try to find it in the annotations file 
@@ -70,21 +71,20 @@ def display_keypoints_on_video(anno_pickle_path, path_video, output_path):
     fps=24
 )
     
-    output_file = os.path.join(output_path, f'skeleton_vis_{video_id}.mp4')
+    output_file = os.path.join(output_path, f'skeleton_vis_denormalized_2d_{video_id}.mp4')
     video.write_videofile(output_file)
     print(f"Saved visualized video to {output_file}")
 
 
 
-def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(1080, 1920), fps=24, video=None, 
-                       show_face=True, show_hands=True, show_body=True):
+def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(1080, 1920), fps=24, video=None, show_face=True, show_hands=True, show_body=True):
     tx = cp.deepcopy(item)
     item = tx
 
     if isinstance(item, str):
         item = load(item)
 
-    kp = item['keypoint'] #shape: (1, 95, 543, 3)
+    kp = item['keypoint'] #shape: (M, T, V, C), e.g. (1, 95, 543, 2)
     print("Keypoint shape:", kp.shape)
 
     num_keypoints = kp.shape[-2]
@@ -95,10 +95,11 @@ def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(1080, 1920), fps=24, video=Non
         kpscore = item['keypoint_score']
         print("Keypoint score shape:", kpscore.shape)
         #concatenate the keypoint scores to kp
-        kp = np.concatenate([kp, kpscore[..., None]], -1)
+        kp = np.concatenate([kp, kpscore[..., None]], -1) #shape now: (M, T, V, C+1)
 
     total_frames = None
-    assert len(kp.shape) == 4, f"Expected 4 dimensions for each keypoint, got {len(kp.shape)}"
+    #TODO: ist kp.shape die Dimension (x, y , z, score) oder (M, T, V, C+1)?
+    assert len(kp.shape) == 4, f"Expected 4 dimensions for each keypoint (M, T, V, C+1), got {len(kp.shape)}"
     total_frames = item.get('total_frames', kp.shape[1])
 
 
@@ -108,29 +109,24 @@ def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(1080, 1920), fps=24, video=Non
                   for i in range(total_frames)]
     else:
         frames = load_frames(video)
+        original_shape = frames[0].shape[:2]
         if out_shape is None:
-            out_shape = frames[0].shape[:2]
-        frames = [cv2.resize(x, (out_shape[1], out_shape[0])) for x in frames]
+            out_shape = original_shape
+        #keypoints need to be scaled to the desired output scale, if it differs from input scale
+        if out_shape != original_shape:
+            #out_shape has format (height, width), but keypoints have format (x, y) -> width*x, height*y
+            scale_height = out_shape[0] / original_shape[0] #scale of output height to input height
+            scale_width = out_shape[1] / original_shape[1] #scale of output width to input width
+            kp = kp.copy()
+            kp[..., 0] *= scale_width  # multiply x-cord of kp with scale_width
+            kp[..., 1] *= scale_height  # multiply y-cord of kp with scale_height
+        frames = [cv2.resize(f, (out_shape[1], out_shape[0])) for f in frames]
 
-    assert kp.shape[-1] in [3, 4], f"Expected 3 or 4 coords, got {kp.shape[-1]}"
-    img_shape = item.get('img_shape', out_shape)
-    out_height, out_width = out_shape[0], out_shape[1]
-    print("DEBUG: Original img_shape:", img_shape)
-    print(f"DEBUG: Before scaling - x range: [{kp[..., 0].min():.3f}, {kp[..., 0].max():.3f}]")
-    print(f"DEBUG: Before scaling - y range: [{kp[..., 1].min():.3f}, {kp[..., 1].max():.3f}]")
-    
-    #clip keypoints to range [0,1]
-    kp[..., 0] = np.clip(kp[..., 0], 0.0, 1.0)
-    kp[..., 1] = np.clip(kp[..., 1], 0.0, 1.0)
-    print(f"DEBUG: After clipping - x range: [{kp[..., 0].min():.3f}, {kp[..., 0].max():.3f}]")
-    print(f"DEBUG: After clipping - y range: [{kp[..., 1].min():.3f}, {kp[..., 1].max():.3f}]")
-
-    #transform keypoints to output video size and sve them (instead of in area between 0 and 1)
-    kp[..., 0] *= out_width
-    kp[..., 1] *= out_height
-    
-    print(f"DEBUG: After scaling - x range: [{kp[..., 0].min():.1f}, {kp[..., 0].max():.1f}]")
-    print(f"DEBUG: After scaling - y range: [{kp[..., 1].min():.1f}, {kp[..., 1].max():.1f}]")
+    assert kp.shape[-1] == 3, f"Expected 2 coords and one score for each keypoint, got {kp.shape[-1]}"
+    #img_shape = item.get('img_shape', out_shape)
+    #out_height, out_width = out_shape[0], out_shape[1]
+   
+   #TODO: ggf keypoints in Wertebereich ihrer image_shape clippen
 
     #prepare keypoints per frame
     kps = [kp[:, i] for i in range(total_frames)]
@@ -213,11 +209,12 @@ def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(1080, 1920), fps=24, video=Non
                 face_kps = ske[33:501]  # 468 face keypoints
                 for fkp in face_kps:
                     x, y = int(fkp[0]), int(fkp[1])
+                    #TODO: ggf brauche das wieder, aber prüfe ja oben schon die shape
                      #set the confidence
-                    if kp.shape[-1] == 4:
-                        conf = fkp[3]  
-                    else:
-                        conf = 1.0
+                    #if kp.shape[-1] == 4:
+                       # conf = fkp[3]  
+                    #else:
+                      #  conf = 1.0
                     if conf > thre:
                         frames[i] = cv2.circle(frames[i], (x, y), 1, (0, 255, 0), -1)
 

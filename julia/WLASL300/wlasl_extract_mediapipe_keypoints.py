@@ -1,11 +1,9 @@
 
 import argparse
 from mmcv import load, dump
-import pyskl
 from pyskl.smp import mrlines, mwlines
 import cv2
-import os, sys, gc
-import time
+import os, gc
 import numpy as np
 import mediapipe as mp
 import multiprocessing
@@ -82,7 +80,7 @@ def load_frames_from_video(video_path):
 #stattdessen: mediapipe_inference
 #def gen_keypoints_for_frames(frames, save_path):
 #    #alle keypoints holen (body und rest)
-#    pose_kps, pose_confs = get_holistic_keypoints(frames) # pose_kps.shape = (T, 543, 3) — alle Keypoints (Body + Face + Hands)
+#    pose_kps, pose_confs = get_holistic_keypoints(frames) # pose_kps.shape = (T, 543, 2) — alle Keypoints (Body + Face + Hands)
 #    
 #    #TODO: das hier wegnehmen, will face behalten
 #    #gesichts keypoits und confidences entfernen, nur Hände und Körper behalten
@@ -92,7 +90,7 @@ def load_frames_from_video(video_path):
 #    #TODO: ändern wie der hier speichert
 #    d = {"keypoints": body_kps, "confidences": confs}
 #    # d = {
-#    #     'keypoints': array (T, 75, 3),
+#    #     'keypoints': array (T, 75, 2),
 #    #     'confidences': array (T, 75)
 #    # }
 #
@@ -114,18 +112,22 @@ def get_holistic_keypoints(frames):
     keypoints = []
     confs = []
 
+    img_shape = frames[0].shape[:2]
+
     #für jeden frame
     for frame in frames:
         results = holistic.process(frame)
 
-        body_data, body_conf = process_body_landmarks(results.pose_landmarks, N_BODY_LANDMARKS)
-        face_data, face_conf = process_other_landmarks(results.face_landmarks, N_FACE_LANDMARKS)
-        lh_data, lh_conf = process_other_landmarks(results.left_hand_landmarks, N_HAND_LANDMARKS)
-        rh_data, rh_conf = process_other_landmarks(results.right_hand_landmarks, N_HAND_LANDMARKS)
+        body_data, body_conf = process_body_landmarks(results.pose_landmarks, N_BODY_LANDMARKS, img_shape)
+        face_data, face_conf = process_other_landmarks(results.face_landmarks, N_FACE_LANDMARKS, img_shape)
+        lh_data, lh_conf = process_other_landmarks(results.left_hand_landmarks, N_HAND_LANDMARKS, img_shape)
+        rh_data, rh_conf = process_other_landmarks(results.right_hand_landmarks, N_HAND_LANDMARKS, img_shape)
+
+
 
         #führe alle generierten keypoints und conf scores zusammen
         data = np.concatenate([body_data, face_data, lh_data, rh_data])
-        # data.shape = (543, 3) = 33+468+21+21
+        # data.shape = (543, 2) = 33+468+21+21 with (x, y) each
         conf = np.concatenate([body_conf, face_conf, lh_conf, rh_conf])
         # conf.shape = (543,)
 
@@ -138,38 +140,46 @@ def get_holistic_keypoints(frames):
     gc.collect()  # Force Garbage Collection
 
     #konvertiert von Liste zu np Array (hier sind kp und confs für ALLE frames)
-    keypoints = np.stack(keypoints) # (T, 543, 3) — T Frames, 543 Keypoints, 3 Koordinaten (x,y,z)
+    keypoints = np.stack(keypoints) # (T, 543, 2) — T Frames, 543 Keypoints, 2 Koordinaten (x,y)
     confs = np.stack(confs) # (T, 543) — Confidence pro Keypoint
     return keypoints, confs
 
 
-#extrahiere BODY keypoints (x,y,z) und confidence score aus mediapipe body/pose landmarks
-def process_body_landmarks(component, n_points):
+#extrahiere BODY keypoints (x,y) und confidence score aus mediapipe body/pose landmarks
+def process_body_landmarks(component, n_points, img_shape):
     #initialisiere leere arrays (falls keine landmarks erkannt werden)
-    kps = np.zeros((n_points, 3))  # (33, 3) für Pose
+    kps = np.zeros((n_points, 2))  # (33, 2) für Pose
     conf = np.zeros(n_points) # (33,) für Confidence
 
     #wenn landmark vorhanden
     if component is not None:
         landmarks = component.landmark  #MediaPipe LandmarkList
-        #Extrahiere x,y,z für jeden Punkt
-        kps = np.array([[p.x, p.y, p.z] for p in landmarks])
+        #Extrahiere x und y für jeden Punkt, lasse z aus
+        kps = np.array([[p.x, p.y] for p in landmarks])
+        #Denormalisiere x und y anhand ihrer image shape, sodass sie nicht mehr im Bereich (0,1) sonder in Pixelwerten im Bereich (W, H) vorliegen
+        h, w = img_shape
+        kps[:, 0] *= w  #x
+        kps[:, 1] *= h  #y
         #Extrahiere Visibility (Konfidenz) für Body-Keypoints
         conf = np.array([p.visibility for p in landmarks])
 
-        #kps   # shape (33, 3), dtype float, Werte 0-1 (normalisiert)
-            # [[x1, y1, z1], [x2, y2, z2], ...]
+        #kps   # shape (33, 2), dtype float, Werte 0-1 (normalisiert)
+            # [[x1, y1], [x2, y2], ...]
         #conf  # shape (33,), dtype float, Werte 0-1 (Visibility-Score)
     #returne BODY keypoints und confidence scores
     return kps, conf
 
-#extrahiere FACE, LEFT HAND, RIGHT HAND keypoints (x,y,z) und confidence score
-def process_other_landmarks(component, n_points):
-    kps = np.zeros((n_points, 3))
+#extrahiere FACE, LEFT HAND, RIGHT HAND keypoints (x,y) und confidence score
+def process_other_landmarks(component, n_points, img_shape):
+    kps = np.zeros((n_points, 2))
     conf = np.zeros(n_points)
     if component is not None:
         landmarks = component.landmark
-        kps = np.array([[p.x, p.y, p.z] for p in landmarks])
+        kps = np.array([[p.x, p.y] for p in landmarks])
+        #Denormalisiere x und y anhand ihrer image shape, sodass sie nicht mehr im Bereich (0,1) sonder in Pixelwerten im Bereich (W, H) vorliegen
+        h, w = img_shape
+        kps[:, 0] *= w  #x
+        kps[:, 1] *= h  #y
         #setze confidence für alle Punkte azf 1
         #TODO: stimmt es, dass mediapipe keine confidence scores für face/hand landmarks liefert?
         conf = np.ones(n_points)
@@ -206,7 +216,7 @@ def mediapipe_inference(anno_in, frames):
     anno['num_person_raw'] = 1 #assume one person per video in SLR
     
     # Extract keypoints
-    pose_kps, pose_confs = get_holistic_keypoints(frames)  # (T, 543, 3), (T, 543)
+    pose_kps, pose_confs = get_holistic_keypoints(frames)  # (T, 543, 2), (T, 543)
     
     #if keep_face:
     # Keep all 543 keypoints (body + face + hands)
@@ -221,8 +231,8 @@ def mediapipe_inference(anno_in, frames):
         #confidences = confs
        # num_keypoints = 75
     
-    # Format: (1, T, num_keypoints, 3) — add person dimension like NTU
-    keypoints = keypoints[np.newaxis, ...]  # (1, T, num_keypoints, 3)
+    # Format: (1, T, num_keypoints, 2) — add person dimension like NTU
+    keypoints = keypoints[np.newaxis, ...]  # (1, T, num_keypoints, 2)
     
     # Store in annotation
     anno['keypoint'] = keypoints.astype(np.float16)
@@ -334,7 +344,7 @@ if __name__ == "__main__":
 
 
     #save results
-    output_file= os.path.join(args.output_path, "pyskl_mediapipe_annos.pkl")
+    output_file= os.path.join(args.output_path, "pyskl_mediapipe_annos_2d_denormalized.pkl")
     dump(output_dict, output_file)
     print(f"Saved annotations to: {output_file}")
     print(f"Split distribution: {[(k, len(v)) for k, v in split_dict.items()]}")
