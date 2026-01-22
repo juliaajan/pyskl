@@ -71,7 +71,7 @@ def display_keypoints_on_video(anno_pickle_path, path_video, output_path):
     fps=24
 )
     
-    output_file = os.path.join(output_path, f'skeleton_vis_denormalized_2d_{video_id}.mp4')
+    output_file = os.path.join(output_path, f'skeleton_vis_denormalized_2d_from_anno{video_id}.mp4')
     video.write_videofile(output_file)
     print(f"Saved visualized video to {output_file}")
 

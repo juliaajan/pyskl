@@ -189,7 +189,7 @@ if __name__ == '__main__':
     keypoint_mapvis = [add_label(f, wlasl_categories[anno['label']]) for f in keypoint_mapvis]
     vid = mpy.ImageSequenceClip(keypoint_mapvis, fps=24)
     #save as video
-    heatmap_output = osp.join(output_dir, f'{anno["frame_dir"]}_keypoint_2d_denorm_heatmap.mp4')
+    heatmap_output = osp.join(output_dir, f'{anno["frame_dir"]}_keypoint_2d_denorm_from_anno_heatmap.mp4')
     vid.write_videofile(heatmap_output, codec='libx264', audio=False, logger=None)
     print(f"Saved heatmap video: {heatmap_output}")
 
