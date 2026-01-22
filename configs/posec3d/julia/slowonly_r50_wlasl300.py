@@ -27,7 +27,7 @@ model = dict(
     test_cfg=dict(average_clips='prob'))
 
 dataset_type = 'PoseDataset' #
-ann_file = 'julia/WLASL300/pyskl_mediapipe_annos.pkl' #TODO
+ann_file = 'julia/WLASL300/pyskl_mediapipe_annos_2d_denormalized_NOFACE.pkl' #TODO 
 #if flipping is used, these need to be adapted based on mediapipe
 #left_kp = [1, 3, 5, 7, 9, 11, 13, 15]
 #right_kp = [2, 4, 6, 8, 10, 12, 14, 16]
@@ -87,4 +87,4 @@ checkpoint_config = dict(interval=1)
 evaluation = dict(interval=1, metrics=['top_k_accuracy', 'mean_class_accuracy'], topk=(1, 5))
 log_config = dict(interval=20, hooks=[dict(type='TextLoggerHook')])
 log_level = 'INFO'
-work_dir = './work_dirs/julia/mediapipe_wlasl300' #TODO
+work_dir = './work_dirs/julia/mediapipe_wlasl300_noface' #TODO
