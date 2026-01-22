@@ -4,6 +4,7 @@ N_BODY_LANDMARKS = 33
 N_HAND_LANDMARKS = 21 #x2 for both hands
 
 #TODO: auf slowfast ändenr und gucken was anpassen muss
+#TODO: muss ich depth setzen? Vielen nutzen depth=50, pretrained=None
 model = dict(
     type='Recognizer3D', #
     backbone=dict(
@@ -33,8 +34,6 @@ ann_file = 'julia/WLASL300/pyskl_mediapipe_annos.pkl' #TODO
 train_pipeline = [
     dict(type='UniformSampleFrames', clip_len=48), #divide video in n segments and choose one random frame from each segment
     dict(type='PoseDecode'),
-    dict(type='KeypointTo2D'), #remove 3d-coordinate of keypoints
-    dict(type='DeNormalizeKeypoints'),  #denormalize mediapipe keypoints from [0, 1] to original image shape
     dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
     #resize the heatmap (not the original image) by subject-centered cropping
     dict(type='Resize', scale=(-1, 64)),
@@ -51,8 +50,6 @@ train_pipeline = [
 val_pipeline = [
     dict(type='UniformSampleFrames', clip_len=48, num_clips=1),
     dict(type='PoseDecode'),
-    dict(type='KeypointTo2D'), #remove 3d-coordinate of keypoints
-    dict(type='DeNormalizeKeypoints'),  #denormalize mediapipe keypoints from [0, 1] to original image shape
     dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
     dict(type='Resize', scale=(64, 64), keep_ratio=False),
     dict(type='GeneratePoseTarget', with_kp=True, with_limb=False),
@@ -63,8 +60,6 @@ val_pipeline = [
 test_pipeline = [
     dict(type='UniformSampleFrames', clip_len=48, num_clips=10), #for faster inference, multi-clip testing can be disabled here by setting num_clips=1
     dict(type='PoseDecode'),
-    dict(type='KeypointTo2D'), #remove 3d-coordinate of keypoints
-    dict(type='DeNormalizeKeypoints'),  #denormalize mediapipe keypoints from [0, 1] to original image shape
     dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
     dict(type='Resize', scale=(64, 64), keep_ratio=False),
     dict(type='GeneratePoseTarget', with_kp=True, with_limb=False, double=False), #add: double=True, left_kp=left_kp, right_kp=right_kp to double the test data by flipping it horizontally
@@ -83,7 +78,7 @@ data = dict(
     val=dict(type=dataset_type, ann_file=ann_file, split='val', pipeline=val_pipeline), #val split
     test=dict(type=dataset_type, ann_file=ann_file, split='test', pipeline=test_pipeline)) #test split
 # optimizer
-optimizer = dict(type='SGD', lr=0.1, momentum=0.9, weight_decay=0.0003) #adapt lr linear to batch size
+optimizer = dict(type='SGD', lr=0.05, momentum=0.9, weight_decay=0.0003) #adapt lr linear to batch size
 optimizer_config = dict(grad_clip=dict(max_norm=40, norm_type=2))
 # learning policy
 lr_config = dict(policy='CosineAnnealing', by_epoch=False, min_lr=0)
