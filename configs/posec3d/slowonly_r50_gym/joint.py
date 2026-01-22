@@ -57,8 +57,8 @@ test_pipeline = [
     dict(type='ToTensor', keys=['imgs'])
 ]
 data = dict(
-    videos_per_gpu=32,
-    workers_per_gpu=4,
+    videos_per_gpu=8,#adaped
+    workers_per_gpu=2, #adapted
     test_dataloader=dict(videos_per_gpu=1),
     train=dict(
         type='RepeatDataset',
@@ -67,7 +67,7 @@ data = dict(
     val=dict(type=dataset_type, ann_file=ann_file, split='val', pipeline=val_pipeline),
     test=dict(type=dataset_type, ann_file=ann_file, split='val', pipeline=test_pipeline))
 # optimizer
-optimizer = dict(type='SGD', lr=0.4, momentum=0.9, weight_decay=0.0003)
+optimizer = dict(type='SGD', lr=0.05, momentum=0.9, weight_decay=0.0003) #adapted
 optimizer_config = dict(grad_clip=dict(max_norm=40, norm_type=2))
 # learning policy
 lr_config = dict(policy='CosineAnnealing', by_epoch=False, min_lr=0)
