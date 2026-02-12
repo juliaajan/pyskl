@@ -25,6 +25,7 @@ mp_holistic = mp.solutions.holistic
 
 N_FACE_LANDMARKS = 468
 N_BODY_LANDMARKS = 33
+N_UPPER_BODY_LANDMARKS = 25
 N_HAND_LANDMARKS = 21 #this number must be doubles for both hands
 
 #Counter: Zählt verarbeitete Videos über mehrere parallele Prozesse hinweg.
@@ -119,6 +120,7 @@ def get_holistic_keypoints(frames):
         results = holistic.process(frame)
 
         #body_data, body_conf = process_body_landmarks(results.pose_landmarks, N_BODY_LANDMARKS, img_shape)
+        upper_body_data, upper_body_conf = process_body_landmarks(results.pose_landmarks, N_UPPER_BODY_LANDMARKS, img_shape)
         #face_data, face_conf = process_other_landmarks(results.face_landmarks, N_FACE_LANDMARKS, img_shape)
         lh_data, lh_conf = process_other_landmarks(results.left_hand_landmarks, N_HAND_LANDMARKS, img_shape)
         rh_data, rh_conf = process_other_landmarks(results.right_hand_landmarks, N_HAND_LANDMARKS, img_shape)
@@ -126,10 +128,10 @@ def get_holistic_keypoints(frames):
 
 
         #führe alle generierten keypoints und conf scores zusammen
-        data = np.concatenate([lh_data, rh_data])
-        # data.shape = (42, 2) = 21+21 with (x, y) each
-        conf = np.concatenate([lh_conf, rh_conf])
-        # conf.shape = (42,)
+        data = np.concatenate([upper_body_data, lh_data, rh_data])
+        # data.shape = (67, 2) = 25+21+21 with (x, y) each
+        conf = np.concatenate([upper_body_conf, lh_conf, rh_conf])
+        # conf.shape = (67,)
 
         keypoints.append(data)
         confs.append(conf)
@@ -140,8 +142,8 @@ def get_holistic_keypoints(frames):
     gc.collect()  # Force Garbage Collection
 
     #konvertiert von Liste zu np Array (hier sind kp und confs für ALLE frames)
-    keypoints = np.stack(keypoints) # (T, 42, 2) — T Frames, 42 Keypoints, 2 Koordinaten (x,y)
-    confs = np.stack(confs) # (T, 42) — Confidence pro Keypoint
+    keypoints = np.stack(keypoints) # (T, 67, 2) — T Frames, 67 Keypoints, 2 Koordinaten (x,y)
+    confs = np.stack(confs) # (T, 67) — Confidence pro Keypoint
     return keypoints, confs
 
 
@@ -154,14 +156,14 @@ def process_body_landmarks(component, n_points, img_shape):
     #wenn landmark vorhanden
     if component is not None:
         landmarks = component.landmark  #MediaPipe LandmarkList
-        #Extrahiere x und y für jeden Punkt, lasse z aus
-        kps = np.array([[p.x, p.y] for p in landmarks])
+        #Extrahiere x und y für jeden Punkt, lasse z aus - nur die ersten n_points (z.B. 25)
+        kps = np.array([[p.x, p.y] for p in landmarks])[:n_points]
         #Denormalisiere x und y anhand ihrer image shape, sodass sie nicht mehr im Bereich (0,1) sonder in Pixelwerten im Bereich (W, H) vorliegen
         h, w = img_shape
         kps[:, 0] *= w  #x
         kps[:, 1] *= h  #y
-        #Extrahiere Visibility (Konfidenz) für Body-Keypoints
-        conf = np.array([p.visibility for p in landmarks])
+        #Extrahiere Visibility (Konfidenz) für Body-Keypoints - nur die ersten n_points
+        conf = np.array([p.visibility for p in landmarks])[:n_points]
 
         #kps   # shape (33, 2), dtype float, Werte 0-1 (normalisiert)
             # [[x1, y1], [x2, y2], ...]
@@ -216,15 +218,15 @@ def mediapipe_inference(anno_in, frames):
     anno['num_person_raw'] = 1 #assume one person per video in SLR
     
     # Extract keypoints
-    pose_kps, pose_confs = get_holistic_keypoints(frames)  # (T, 42, 2), (T, 42)
+    pose_kps, pose_confs = get_holistic_keypoints(frames)  # (T, 67, 2), (T, 67)
     
     #if keep_face:
-    # Keep all 42 keypoints (hands)
+    # Keep all 67 keypoints (upper body + hands)
     keypoints = pose_kps
     confidences = pose_confs
-    #num_keypoints = 42
+    #num_keypoints = 67
     #else:
-        # Only hands (42 keypoints)
+        # Only upper body hands (67 keypoints)
        # body_kps = np.concatenate([pose_kps[:, :33, :], pose_kps[:, 501:, :]], axis=1)
         #confs = np.concatenate([pose_confs[:, :33], pose_confs[:, 501:]], axis=1)
         #keypoints = body_kps
@@ -344,7 +346,7 @@ if __name__ == "__main__":
 
 
     #save results
-    output_file= os.path.join(args.output_path, "pyskl_mediapipe_annos_2d_denormalized_NOFACE_NOBODY.pkl")
+    output_file= os.path.join(args.output_path, "pyskl_mediapipe_annos_2d_denormalized_NOFACE_UPPERBODY.pkl")
     dump(output_dict, output_file)
     print(f"Saved annotations to: {output_file}")
     print(f"Split distribution: {[(k, len(v)) for k, v in split_dict.items()]}")
