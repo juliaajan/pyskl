@@ -83,7 +83,7 @@ optimizer = dict(type='SGD', lr=0.05, momentum=0.9, weight_decay=0.0003) #adapt 
 optimizer_config = dict(grad_clip=dict(max_norm=40, norm_type=2))
 # learning policy
 lr_config = dict(policy='CosineAnnealing', by_epoch=False, min_lr=0)
-total_epochs = 24 #epochs
+total_epochs = 120 #epochs
 checkpoint_config = dict(interval=1)
 evaluation = dict(interval=1, metrics=['top_k_accuracy', 'mean_class_accuracy'], topk=(1, 5), save_best='auto')
 #custom hook for early stopping
@@ -92,10 +92,10 @@ custom_hooks = [
         type='EarlyStoppingHook',
         monitor='top1_acc', #which metric to monitor and compare for early stopping
         rule='greater',
-        min_delta=10, #0.001
-        patience=2 #5 #number of epochs to wait when no improvement is observed before stopping the training
+        min_delta=0.001, 
+        patience=5 #number of epochs to wait when no improvement is observed before stopping the training
     )
 ]
 log_config = dict(interval=20, hooks=[dict(type='TextLoggerHook')])
 log_level = 'INFO'
-work_dir = './work_dirs/julia/mediapipe_wlasl300_noface_upperbody_earlystopping' #TODO
+work_dir = './work_dirs/julia/mediapipe_wlasl300_noface_upperbody_120epochs' #TODO
