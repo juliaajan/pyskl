@@ -25,6 +25,17 @@ skeleton_map = dict(
         (27, 29, 'ld'), (27, 31, 'ld'),  # Left foot
         (28, 30, 'rd'), (28, 32, 'rd')   # Right foot
     ],
+    mediapipe_upperbody=[
+        # Upper body connections (first 25 keypoints, indices 0-24)
+        (0, 1, 'f'), (1, 2, 'f'), (2, 3, 'f'), (3, 7, 'f'),  # Face
+        (0, 4, 'f'), (4, 5, 'f'), (5, 6, 'f'), (6, 8, 'f'),  # Face
+        (9, 10, 'f'),  # Mouth
+        (11, 12, 't'), (11, 13, 'lu'), (13, 15, 'lu'),  # Left arm
+        (12, 14, 'ru'), (14, 16, 'ru'),  # Right arm
+        (11, 23, 'ld'),  # Left side
+        (12, 24, 'rd'),  # Right side
+        (23, 24, 't'),  # Hip
+    ],
     mediapipe_hand=[
         # Hand connections (21 keypoints per hand)
         (0, 1, 't'), (1, 2, 'f'), (2, 3, 'f'), (3, 4, 'f'),      # Thumb
@@ -64,20 +75,21 @@ def display_keypoints_on_video(anno_pickle_path, path_video, output_path):
     video = Vis2DPoseMediaPipe(
     anno, 
     video=path_video,
-    show_face=True,      # Face als Punkte (optional)
+    show_face=False,      # Face als Punkte (optional)
     show_hands=True,      # Hände anzeigen
-    show_body=True,       # Körper anzeigen
+    show_body=False,       # Körper anzeigen
+    show_upperbody=True,   # Oberkörper anzeigen
     thre=0.3,             # Confidence threshold
     fps=24
 )
     
-    output_file = os.path.join(output_path, f'skeleton_vis_denormalized_2d_from_anno{video_id}.mp4')
+    output_file = os.path.join(output_path, f'skeleton_vis_noface_upperbody{video_id}.mp4')
     video.write_videofile(output_file)
     print(f"Saved visualized video to {output_file}")
 
 
 
-def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(1080, 1920), fps=24, video=None, show_face=True, show_hands=True, show_body=True):
+def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(1080, 1920), fps=24, video=None, show_face=True, show_hands=True, show_body=True, show_upperbody=False):
     tx = cp.deepcopy(item)
     item = tx
 
@@ -133,6 +145,7 @@ def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(1080, 1920), fps=24, video=Non
 
 
     body_edges = skeleton_map['mediapipe_body']
+    upperbody_edges = skeleton_map['mediapipe_upperbody']
     hand_edges = skeleton_map['mediapipe_hand']
     
     color_map = {
@@ -166,6 +179,23 @@ def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(1080, 1920), fps=24, video=Non
                         color = tuple([int(x) for x in color])
                         frames[i] = cv2.line(frames[i], (j1x, j1y), (j2x, j2y), color, thickness=2)
             
+            # Draw upper body (keypoints 0-24)
+            if show_upperbody:
+                for st, ed, co in upperbody_edges:
+                    j1, j2 = ske[st], ske[ed]
+                    j1x, j1y, j2x, j2y = int(j1[0]), int(j1[1]), int(j2[0]), int(j2[1])
+                    #set the confidence (was appended from keyypoint_score to kp)
+                    if kp.shape[-1] == 4:
+                        conf = min(j1[3], j2[3])  #index 3 = confidence score
+                    else:
+                        conf = 1.0  #fallback if no confidence provided
+                    
+                    if conf > thre:
+                        co_tup = color_map[co]
+                        color = [x + (y - x) * (conf - thre) / 0.8 for x, y in zip(co_tup[0], co_tup[1])]
+                        color = tuple([int(x) for x in color])
+                        frames[i] = cv2.line(frames[i], (j1x, j1y), (j2x, j2y), color, thickness=2)
+            
             # Draw hands
             if show_hands:
                 if has_face:
@@ -174,9 +204,14 @@ def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(1080, 1920), fps=24, video=Non
                     # Right hand: keypoints 522-542
                     right_hand = ske[522:543]
                 else:
-                    # Without face: keypoints 33-53 (left), 54-74 (right)
-                    left_hand = ske[33:54]
-                    right_hand = ske[54:75]
+                    if show_body:
+                        # Without face: keypoints 33-53 (left), 54-74 (right)
+                        left_hand = ske[33:54]
+                        right_hand = ske[54:75]
+                    elif show_upperbody:
+                        #without face and withoug lower body: keypoints 24-45 (left), 46-66 (right)
+                        left_hand = ske[25:46]
+                        right_hand = ske[46:67]
                 
                 # Draw left hand
                 for st, ed, co in hand_edges:
