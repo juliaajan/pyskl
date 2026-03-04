@@ -27,8 +27,8 @@ model = dict(
 dataset_type = 'PoseDataset' #
 ann_file = 'julia/WLASL300/pyskl_mediapipe_annos_2d_denormalized_NOFACE_NOBODY.pkl' #TODO 
 #if flipping is used, these need to be adapted based on mediapipe
-#left_kp = [1, 3, 5, 7, 9, 11, 13, 15]
-#right_kp = [2, 4, 6, 8, 10, 12, 14, 16]
+left_kp = list(range(0, 21)) #left hand: points 0 to 20
+right_kp = list(range(21, 42)) #right hand: points 21 to 41
 train_pipeline = [
     dict(type='UniformSampleFrames', clip_len=48), #divide video in n segments and choose one random frame from each segment
     dict(type='PoseDecode'),
@@ -37,8 +37,7 @@ train_pipeline = [
     dict(type='Resize', scale=(-1, 64)),
     dict(type='RandomResizedCrop', area_range=(0.56, 1.0)), #?
     dict(type='Resize', scale=(56, 56), keep_ratio=False), #warum zwei mal?
-    #remove flipping
-    #dict(type='Flip', flip_ratio=0.5, left_kp=left_kp, right_kp=right_kp),
+    dict(type='Flip', flip_ratio=0.5, left_kp=left_kp, right_kp=right_kp),
     dict(type='GeneratePoseTarget', with_kp=True, with_limb=False), #with_limb kontrolliert ob heatmap nur aus punkten (keypoints) oder auch verbindungen zwischen den kps generiert, joints (no limbs) ist für SLR besser, s. heatmap visualization
     dict(type='FormatShape', input_format='NCTHW_Heatmap'), #?
     dict(type='Collect', keys=['imgs', 'label'], meta_keys=[]), #?
@@ -60,7 +59,7 @@ test_pipeline = [
     dict(type='PoseDecode'),
     dict(type='PoseCompact', hw_ratio=1.0, allow_imgpad=True),
     dict(type='Resize', scale=(64, 64), keep_ratio=False),
-    dict(type='GeneratePoseTarget', with_kp=True, with_limb=False, double=False), #add: double=True, left_kp=left_kp, right_kp=right_kp to double the test data by flipping it horizontally
+    dict(type='GeneratePoseTarget', with_kp=True, with_limb=False, double=True, left_kp=left_kp, right_kp=right_kp),
     dict(type='FormatShape', input_format='NCTHW_Heatmap'), #?
     dict(type='Collect', keys=['imgs', 'label'], meta_keys=[]), #?
     dict(type='ToTensor', keys=['imgs']) #?
@@ -85,4 +84,4 @@ checkpoint_config = dict(interval=1)
 evaluation = dict(interval=1, metrics=['top_k_accuracy', 'mean_class_accuracy'], topk=(1, 5), save_best='auto')
 log_config = dict(interval=20, hooks=[dict(type='TextLoggerHook')])
 log_level = 'INFO'
-work_dir = './work_dirs/julia/mediapipe_wlasl300_noface_nobody_120epochs' #TODO
+work_dir = './work_dirs/julia/mediapipe_wlasl300_noface_nobody_120epochs_flip' #TODO
