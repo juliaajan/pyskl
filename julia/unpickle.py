@@ -1,13 +1,16 @@
-#in pickle file gucken und schauen ob die auch train/test/val drins tehen haben
-#(dann hätte preprocessing step sparen können)
 
+import mmcv
+try:
+    from mmcv import load #for remote labpc
+except (ImportError, ModuleNotFoundError):
+    try:
+        from mmengine.fileio import load #for windows
+    except (ImportError, ModuleNotFoundError) as e:
+        raise ModuleNotFoundError(f"Weder mmcv.load noch mmengine.fileio.load konnten importiert werden. Fehlermeldung: {e}" )
 
-#TODO: alle pickle files in ein file (pro train/test/val) kombinieren
 import argparse
 import pickle
-import json
 import numpy as np
-from mmcv import load
 
 
 def unpickle(path):
@@ -25,7 +28,8 @@ def unpickle(path):
             raise
     
     #dont let numpy shorten the output with "..." but print the whole array
-    np.set_printoptions(threshold=np.inf, linewidth=200)
+    #only uncomment this line for short files, when using annotations for a single video!
+    #np.set_printoptions(threshold=np.inf, linewidth=200)
     
     output_path = path.replace('.pkl', '.txt')
     with open(output_path, "w") as f:
@@ -38,20 +42,13 @@ def unpickle(path):
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(
-      description='Unpickle a pickle file and save it as a json')
+      description='Unpickle a pickle file and save it as a txt')
   parser.add_argument('pickle_file', type=str, help='path and name of pickle file')
   args = parser.parse_args()
 
   unpickle(args.pickle_file)
 
 
-
-
-
-
-#TODO: kann ggf auch als text datei statt als json speichern
-######für pickle files runtergeladen von OpenHands docu für WLASL
-#path_to_file = '../data/WLASL/WLASL/wlasl_poses_pickle/val/00295.pkl'
 
 #Aufbau:
 #{'keypoints': array1, 'confidences': array2},

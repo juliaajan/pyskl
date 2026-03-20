@@ -1,6 +1,5 @@
 import argparse
 import torch
-import json
 import numpy as np
 
 
@@ -16,7 +15,7 @@ def unpickle(path):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description='Unpickle a pth file and save it as a json')
+        description='Unpickle a pth file and save it as a txt')
     parser.add_argument('pth_file', type=str, help='path and name of pth file')
     args = parser.parse_args()
 
