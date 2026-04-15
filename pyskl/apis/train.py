@@ -9,7 +9,7 @@ from mmcv.engine import multi_gpu_test
 from mmcv.parallel import MMDistributedDataParallel
 from mmcv.runner import DistSamplerSeedHook, EpochBasedRunner, OptimizerHook, build_optimizer, get_dist_info
 
-from ..core import DistEvalHook
+from ..core import DistEvalHook, EarlyStoppingHook
 from ..datasets import build_dataloader, build_dataset
 from ..utils import cache_checkpoint, get_root_logger
 
@@ -134,6 +134,18 @@ def train_model(model,
         val_dataloader = build_dataloader(val_dataset, **dataloader_setting)
         eval_hook = DistEvalHook(val_dataloader, **eval_cfg)
         runner.register_hook(eval_hook)
+
+    #custom hook for early stopping
+    early_stopping_cfg = cfg.get('early_stopping', None)
+    if early_stopping_cfg is not None:
+        if not validate:
+            logger.warning('Early stopping is enabled but validate is set to False, Early stopping will be skipped.')
+        else:
+            #set priority to lowest to make sure to call this hook after evaluation and all other hooks
+            runner.register_hook(EarlyStoppingHook(**early_stopping_cfg), priority='LOWEST')
+    else:
+        logger.warning('Could not find early_stopping_config, Early stopping will be skipped.')
+
 
     if cfg.get('resume_from', None):
         runner.resume(cfg.resume_from)

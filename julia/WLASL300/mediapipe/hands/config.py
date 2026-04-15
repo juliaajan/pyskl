@@ -79,9 +79,17 @@ optimizer = dict(type='SGD', lr=0.05, momentum=0.9, weight_decay=0.0003) #adapt 
 optimizer_config = dict(grad_clip=dict(max_norm=40, norm_type=2))
 # learning policy
 lr_config = dict(policy='CosineAnnealing', by_epoch=False, min_lr=0)
-total_epochs = 120 #epochs
+total_epochs = 240 #epochs, attention: will be overwritten if early_stopping is used and max_epochs is set lower than total_epochs
 checkpoint_config = dict(interval=1)
 evaluation = dict(interval=1, metrics=['top_k_accuracy', 'mean_class_accuracy'], topk=(1, 5), save_best='auto')
+#early stopping
+early_stopping = dict(
+    monitor='loss',
+    phase='val',
+    patience=5,
+    min_delta=0.001,
+    max_epochs=240,
+    mode='min')
 log_config = dict(interval=20, hooks=[dict(type='TextLoggerHook')])
 log_level = 'INFO'
-work_dir = './work_dirs/julia/mediapipe_wlasl300_noface_nobody_120epochs_flip' #TODO
+work_dir = './work_dirs/julia/mediapipe_wlasl300_noface_nobody_240epochs_flip_earlystopping_loss' #TODO

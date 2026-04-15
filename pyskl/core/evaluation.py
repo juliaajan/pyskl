@@ -1,6 +1,157 @@
 # Copyright (c) OpenMMLab. All rights reserved.
+# EarlyStoppingHook based on open PR contirbuted by 24hours:  https://github.com/open-mmlab/mmcv/pull/1602
+
+import warnings
+from numbers import Number
+from typing import Callable, Dict
+
 import numpy as np
-from mmcv.runner import DistEvalHook as BasicDistEvalHook
+from mmcv.runner import DistEvalHook as BasicDistEvalHook, Hook
+
+   
+class EarlyStoppingHook(Hook):
+    r"""Stop training when a monitored metric has stopped improving.
+
+    Args:
+        monitor(str): The metric to monitor for improvement, e.g. 'top1_acc', 'loss'.
+        phase(str): Determines whether early stopping should be performed based on train or validation metrics. Default is 'train'.
+        min_delta(float): The minimum change in the monitored metric to qualify as an improvement. Default is 0.001.
+        patience(int): Number of epochs to wait when no improvement is observed before stopping the training. Default is 3.
+        mode(str): The comparison rule to determine if the monitored metric has improved, options are 'min' and 'max'.
+            In 'min' mode, training will be stopped when the metric has stopped decreasing, and in 'max' mode, it will be stopped when the metric has stopped increasing.
+        max_epochs(int): Maximum number of epochs to run before stopping the training regardless of improvement. Default is None, which means no maximum limit.
+
+        To use, add the following configuration to your config file and adapt as needed:
+            early_stopping = dict(
+                monitor='top1_acc',
+                phase='val',
+                patience=3,
+                min_delta=0.01,
+                mode='max',
+                max_epochs= 120)
+   
+     """
+
+    mode_dict = {'min': np.less, 'max': np.greater}
+    direction_dict = {'min': 'decrease', 'max': 'increase'}
+    monitor_dict = {'top1_acc', 'loss'}
+
+    def __init__(self, monitor: str, phase: str='val', min_delta: float=0.001, patience: int=3, mode: str='max', max_epochs: int=None):
+        
+        if monitor not in self.monitor_dict:
+            raise ValueError(f"Monitoring metric must be one of {', '.join(self.monitor_dict.keys())}, but is {monitor}")
+        
+        if phase not in ['train', 'val']:
+            raise ValueError(f"Phase must be one of 'train' and 'val', but is {phase}")
+        
+        if patience < 0:
+            raise ValueError("Patience must be >= 0")
+        
+        if mode not in self.mode_dict:
+            raise ValueError(f"Mode must be one of {', '.join(self.mode_dict.keys())}, but is {mode}")
+
+        if max_epochs is not None and max_epochs <= 0:
+            raise ValueError("max_epochs must be > 0 or None")
+        
+        self.monitor = monitor
+        self.phase = phase
+        self.min_delta = min_delta
+        self.patience = patience
+        self.mode = mode
+        self.max_epochs = max_epochs
+        self.wait_count = 0 #counter to check for how many epochs no improvement has been observed, to compare to patience
+       
+        self.min_delta *= 1 if self.monitor_op == np.greater else -1
+        self.best_score = np.Inf if self.monitor_op == np.less else -np.Inf 
+
+    def before_run(self, runner):
+        if runner.meta is None:
+            warnings.warn('runner.meta is None. Creating an empty one.')
+            runner.meta = dict()
+        runner.meta.setdefault('hook_msgs', dict())
+        self.wait_count = runner.meta['hook_msgs'].get('wait_count',
+                                                       self.wait_count)
+        self.best_score = runner.meta['hook_msgs'].get('early_stop_best_score',
+                                                       self.best_score)
+
+    def before_train_epoch(self, runner):        
+        runner.log_buffer.clear()
+            
+    def after_train_epoch(self, runner):
+        runner.log_buffer.average()
+        runner.logger.info("############## LOSS")
+        runner.logger.info(f"Loss : {runner.log_buffer.output['loss']}")
+        self._run_early_stopping_check(runner, runner.log_buffer.output)
+
+
+   
+    @property
+    def monitor_op(self) -> Callable:
+        return self.mode_dict[self.mode]
+
+    def get_mode(self, runner):
+        return runner.mode
+
+    def _get_current_score(self, runner, logs: Dict[str, float]):
+        #workaround to get the top1_acc score in the validation phase as after_val_epoch is not used. Instead, validation is performed at the end of the train phase by DistEvalHook
+        monitor = None
+        if self.phase == 'val' and self.monitor == 'top1_acc':
+            val_logs = runner.meta.get('hook_msgs', {}).get('last_eval_res', {})
+            monitor = val_logs.get(self.monitor)
+        else:
+            monitor = logs.get(self.monitor).squeeze()
+
+        if monitor is None:
+            raise RuntimeError(f'Early stopping metric was set to {self.monitor}, which is not available in the logs.')
+        
+        runner.logger.info(f"Phase is set to {self.phase}, current {self.monitor} for last {self.phase} epoch is: {monitor}")        
+        return monitor
+
+    def _run_early_stopping_check(self, runner, logs: Dict[str, float]):
+        runner.logger.info(f'Starting EarlyStoppingCheck. Current epoch: {runner.epoch +1}. Max epochs are currently set to: {runner._max_epochs}')
+
+        #get the current score from the logs
+        current_score = self._get_current_score(runner, logs)
+
+        should_stop, reason = self._evaluate_stopping_criteria(current_score, runner)
+        runner.meta['hook_msgs']['wait_count'] = self.wait_count
+        runner.meta['hook_msgs']['early_stop_best_score'] = self.best_score
+        
+        #stop training:
+        if should_stop:
+            #stop training by setting the max_epochs in the runner to the current epoch (+1 because epochs are 0-based)
+            runner._max_epochs = runner.epoch + 1
+            runner.logger.info(f"Stopped training due to early stopping criteria. Reason: {reason}")
+        else:
+            runner.logger.info(f"Early stopping criteria not met. Reason: {reason} Training will be continued...")
+
+
+
+    def _evaluate_stopping_criteria(self, current_score: float, runner):
+        should_stop = False
+        reason = None
+
+        #if max_epochs is set, directly stop once the max amount of epochs is reached, regardless of improvement
+        if self.max_epochs is not None and runner.epoch +1 >= self.max_epochs:
+            should_stop = True
+            reason= f'The maximum number of epochs is reached. Max_epochs is set to {self.max_epochs}, current epoch is {runner.epoch +1}.'
+            return should_stop, reason
+
+        #metric did increase (decrease), update best score
+        if self.monitor_op(current_score - self.min_delta, self.best_score):
+            should_stop = False
+            reason = f"Metric {self.monitor} {self.direction_dict[self.mode]}ed. Last best score was {self.best_score:.3f}, current score is {current_score:.3f} with min_delta {self.min_delta}. New best score set to {current_score:.3f}."
+            self.best_score = current_score
+            self.wait_count = 0
+        #metric did not increase (decrease), check if patience is exceeded
+        else: 
+            self.wait_count += 1
+            reason = f"Monitored metric {self.monitor} did not {self.direction_dict[self.mode]} in the last {self.wait_count} epochs, but patience of {self.patience} is not exceeded yet. Best score was {self.best_score:.3f}, current score is {current_score:.3f} with min_delta {self.min_delta}. "
+            if self.wait_count >= self.patience:
+                should_stop = True
+                reason = f"Monitored metric {self.monitor} did not further {self.direction_dict[self.mode]} in the last {self.wait_count} epochs. Best score was {self.best_score:.3f}, current score is {current_score:.3f} with min_delta {self.min_delta}. Signaling Runner to stop."
+
+        return should_stop, reason
 
 
 class DistEvalHook(BasicDistEvalHook):
@@ -34,6 +185,23 @@ class DistEvalHook(BasicDistEvalHook):
         n = self._find_n(runner)
         assert n is not None
         return self.every_n_epochs(runner, n)
+
+    def evaluate(self, runner, results):
+        key_score = super().evaluate(runner, results)
+
+        if runner.meta is None:
+            runner.meta = dict()
+        runner.meta.setdefault('hook_msgs', dict())
+
+        #persist current validation metrics for EarlyStoppingHook
+        eval_logs = {
+            k: float(v)
+            for k, v in runner.log_buffer.output.items()
+            if isinstance(v, Number)
+        }
+        runner.meta['hook_msgs']['last_eval_res'] = eval_logs
+
+        return key_score
 
 
 def confusion_matrix(y_pred, y_real, normalize=None):
@@ -154,7 +322,7 @@ def mean_average_precision(scores, labels):
             sample.
 
     Returns:
-        np.float: The mean average precision.
+        float: The mean average precision.
     """
     results = []
     scores = np.stack(scores).T

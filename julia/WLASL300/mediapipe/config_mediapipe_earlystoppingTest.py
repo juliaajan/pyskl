@@ -1,8 +1,14 @@
+import os
+extractor = os.environ.get('EXTRACTOR')
+bodyparts = os.environ.get('BODYPARTS')
 
-N_FACE_LANDMARKS = 468
 N_BODY_LANDMARKS = 33
-N_UPPER_BODY_LANDMARKS = 25
 N_HAND_LANDMARKS = 21 #x2 for both hands
+
+#hiermit weitermachen um ein einheitliches für alle zu kriegen
+#nm_keypoints = 0
+
+
 
 #TODO: auf slowfast ändenr und gucken was anpassen muss
 #TODO: muss ich depth setzen? Vielen nutzen depth=50, pretrained=None
@@ -10,7 +16,7 @@ model = dict(
     type='Recognizer3D', #
     backbone=dict(
         type='ResNet3dSlowOnly', 
-        in_channels= N_UPPER_BODY_LANDMARKS + 2 * N_HAND_LANDMARKS, #number of keypoints
+        in_channels= 75, #number of keypoints
         base_channels=32,
         num_stages=3,
         out_indices=(2, ),
@@ -28,26 +34,20 @@ model = dict(
     test_cfg=dict(average_clips='prob'))
 
 dataset_type = 'PoseDataset' #
-ann_file = 'julia/WLASL300/pyskl_mediapipe_annos_2d_denormalized_NOFACE_UPPERBODY.pkl' #TODO 
-#Define kepoints for "Flip" Module
-#point 0 is the nose which is centered, and therefore neither left nor right keypoint
-left_upperbody = [4, 5, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24]
-right_upperbody = [1, 2, 3, 7, 9, 11, 13, 15, 17, 19, 21, 23]
-#left and right hand keypoints each with 21 kps starting at index 25, left hand is extracted first
-left_hand = list(range(25, 46))
-right_hand = list(range(46, 67)) 
-left_kp = left_upperbody + left_hand
-right_kp = right_upperbody + right_hand
-
+ann_file = 'julia/WLASL300/pyskl_mediapipe_annos_2d_denormalized_NOFACE.pkl' #TODO 
+#if flipping is used, these need to be adapted based on mediapipe
+#left_kp = [1, 3, 5, 7, 9, 11, 13, 15]
+#right_kp = [2, 4, 6, 8, 10, 12, 14, 16]
 train_pipeline = [
-    dict(type='UniformSampleFrames', clip_len=48), #divide video in n segments and choose one random frame from each segment
+    dict(type='UniformSampleFrames', clip_len=12), #divide video in n segments and choose one random frame from each segment
     dict(type='PoseDecode'),
-    dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
+    dict(type='PoseCompact', hw_ratio=1.0, allow_imgpad=True),
     #resize the heatmap (not the original image) by subject-centered cropping
-    dict(type='Resize', scale=(-1, 64)),
-    dict(type='RandomResizedCrop', area_range=(0.56, 1.0)), #?
-    dict(type='Resize', scale=(56, 56), keep_ratio=False), #warum zwei mal?
-    dict(type='Flip', flip_ratio=0.5, left_kp=left_kp, right_kp=right_kp),
+    dict(type='Resize', scale=(-1, 24)),
+    #dict(type='RandomResizedCrop', area_range=(0.56, 1.0)), #?
+    #dict(type='Resize', scale=(48, 48), keep_ratio=False), #warum zwei mal?
+    #remove flipping
+    #dict(type='Flip', flip_ratio=0.5, left_kp=left_kp, right_kp=right_kp),
     dict(type='GeneratePoseTarget', with_kp=True, with_limb=False), #with_limb kontrolliert ob heatmap nur aus punkten (keypoints) oder auch verbindungen zwischen den kps generiert, joints (no limbs) ist für SLR besser, s. heatmap visualization
     dict(type='FormatShape', input_format='NCTHW_Heatmap'), #?
     dict(type='Collect', keys=['imgs', 'label'], meta_keys=[]), #?
@@ -55,21 +55,21 @@ train_pipeline = [
     #PackActionInputs ?
 ]
 val_pipeline = [
-    dict(type='UniformSampleFrames', clip_len=48, num_clips=1),
+    dict(type='UniformSampleFrames', clip_len=12, num_clips=1),
     dict(type='PoseDecode'),
-    dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
-    dict(type='Resize', scale=(64, 64), keep_ratio=False),
+    dict(type='PoseCompact', hw_ratio=1.0, allow_imgpad=True),
+    dict(type='Resize', scale=(24, 24), keep_ratio=False),
     dict(type='GeneratePoseTarget', with_kp=True, with_limb=False),
     dict(type='FormatShape', input_format='NCTHW_Heatmap'),
     dict(type='Collect', keys=['imgs', 'label'], meta_keys=[]),
     dict(type='ToTensor', keys=['imgs'])
 ]
 test_pipeline = [
-    dict(type='UniformSampleFrames', clip_len=48, num_clips=10), #for faster inference, multi-clip testing can be disabled here by setting num_clips=1
+    dict(type='UniformSampleFrames', clip_len=12, num_clips=1), #for faster inference, multi-clip testing can be disabled here by setting num_clips=1
     dict(type='PoseDecode'),
     dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
-    dict(type='Resize', scale=(64, 64), keep_ratio=False),
-    dict(type='GeneratePoseTarget', with_kp=True, with_limb=False, double=True, left_kp=left_kp, right_kp=right_kp),
+    dict(type='Resize', scale=(24, 24), keep_ratio=False),
+    dict(type='GeneratePoseTarget', with_kp=True, with_limb=False, double=False), #add: double=True, left_kp=left_kp, right_kp=right_kp to double the test data by flipping it horizontally
     dict(type='FormatShape', input_format='NCTHW_Heatmap'), #?
     dict(type='Collect', keys=['imgs', 'label'], meta_keys=[]), #?
     dict(type='ToTensor', keys=['imgs']) #?
@@ -80,7 +80,7 @@ data = dict(
     test_dataloader=dict(videos_per_gpu=1),
     train=dict(
         type='RepeatDataset',
-        times=10,
+        times=2,
         dataset=dict(type=dataset_type, ann_file=ann_file, split='train', pipeline=train_pipeline)), #train split
     val=dict(type=dataset_type, ann_file=ann_file, split='val', pipeline=val_pipeline), #val split
     test=dict(type=dataset_type, ann_file=ann_file, split='test', pipeline=test_pipeline)) #test split
@@ -89,17 +89,19 @@ optimizer = dict(type='SGD', lr=0.05, momentum=0.9, weight_decay=0.0003) #adapt 
 optimizer_config = dict(grad_clip=dict(max_norm=40, norm_type=2))
 # learning policy
 lr_config = dict(policy='CosineAnnealing', by_epoch=False, min_lr=0)
-total_epochs = 240 #epochs, attention: will be overwritten if early_stopping is used and max_epochs is set lower than total_epochs
+total_epochs = 120 #epochs
 checkpoint_config = dict(interval=1)
 evaluation = dict(interval=1, metrics=['top_k_accuracy', 'mean_class_accuracy'], topk=(1, 5), save_best='auto')
+
 #early stopping
 early_stopping = dict(
     monitor='loss',
     phase='val',
     patience=5,
     min_delta=0.001,
-    max_epochs=240,
+    max_epochs=120,
     mode='min')
+
 log_config = dict(interval=20, hooks=[dict(type='TextLoggerHook')])
 log_level = 'INFO'
-work_dir = './work_dirs/julia/mediapipe_wlasl300_noface_upperbody_240epochs_flip_earlystopping_loss' #TODO
+work_dir = './work_dirs/julia/mediapipe_wlasl300_noface_earlystoppingtest_loss' #TODO
