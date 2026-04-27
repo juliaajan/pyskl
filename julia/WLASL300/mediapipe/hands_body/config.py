@@ -43,9 +43,9 @@ train_pipeline = [
     dict(type='PoseDecode'),
     dict(type='PoseCompact', hw_ratio=1.0, allow_imgpad=True),
     #resize the heatmap (not the original image) by subject-centered cropping
-    dict(type='Resize', scale=(-1, 64)),
+    dict(type='Resize', scale=(-1, 128)),
     dict(type='RandomResizedCrop', area_range=(0.56, 1.0)), #?
-    dict(type='Resize', scale=(56, 56), keep_ratio=False), #warum zwei mal?
+    dict(type='Resize', scale=(128, 128), keep_ratio=False), #warum zwei mal?
     dict(type='Flip', flip_ratio=0.5, left_kp=left_kp, right_kp=right_kp),
     dict(type='GeneratePoseTarget', with_kp=True, with_limb=False), #with_limb kontrolliert ob heatmap nur aus punkten (keypoints) oder auch verbindungen zwischen den kps generiert, joints (no limbs) ist für SLR besser, s. heatmap visualization
     dict(type='FormatShape', input_format='NCTHW_Heatmap'), #?
@@ -57,7 +57,7 @@ val_pipeline = [
     dict(type='UniformSampleFrames', clip_len=48, num_clips=1),
     dict(type='PoseDecode'),
     dict(type='PoseCompact', hw_ratio=1.0, allow_imgpad=True),
-    dict(type='Resize', scale=(64, 64), keep_ratio=False),
+    dict(type='Resize', scale=(128, 128), keep_ratio=False),
     dict(type='GeneratePoseTarget', with_kp=True, with_limb=False),
     dict(type='FormatShape', input_format='NCTHW_Heatmap'),
     dict(type='Collect', keys=['imgs', 'label'], meta_keys=[]),
@@ -67,7 +67,7 @@ test_pipeline = [
     dict(type='UniformSampleFrames', clip_len=48, num_clips=10), #for faster inference, multi-clip testing can be disabled here by setting num_clips=1
     dict(type='PoseDecode'),
     dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
-    dict(type='Resize', scale=(64, 64), keep_ratio=False),
+    dict(type='Resize', scale=(128, 128), keep_ratio=False),
     dict(type='GeneratePoseTarget', with_kp=True, with_limb=False, double=True, left_kp=left_kp, right_kp=right_kp),
     dict(type='FormatShape', input_format='NCTHW_Heatmap'), #?
     dict(type='Collect', keys=['imgs', 'label'], meta_keys=[]), #?
@@ -101,4 +101,4 @@ early_stopping = dict(
     mode='min')
 log_config = dict(interval=20, hooks=[dict(type='TextLoggerHook')])
 log_level = 'INFO'
-work_dir = './work_dirs/julia/mediapipe_wlasl300_noface_240epochs_flip_earlyStopping_loss' #TODO
+work_dir = './work_dirs/julia/mediapipe_wlasl300_noface_240epochs_flip_earlyStopping_loss_Resize128' #TODO
