@@ -74,7 +74,7 @@ test_pipeline = [
     dict(type='ToTensor', keys=['imgs']) #?
 ]
 data = dict(
-    videos_per_gpu=8, #decrease videos per gpu to prevent cuda out of memory, Attention: adapt lr accordingly
+    videos_per_gpu=4, #decrease videos per gpu to prevent cuda out of memory, Attention: adapt lr accordingly
     workers_per_gpu=2, #decrease worker
     test_dataloader=dict(videos_per_gpu=1),
     train=dict(
@@ -84,7 +84,7 @@ data = dict(
     val=dict(type=dataset_type, ann_file=ann_file, split='val', pipeline=val_pipeline), #val split
     test=dict(type=dataset_type, ann_file=ann_file, split='test', pipeline=test_pipeline)) #test split
 # optimizer
-optimizer = dict(type='SGD', lr=0.05, momentum=0.9, weight_decay=0.0003) #adapt lr linear to batch size
+optimizer = dict(type='SGD', lr=0.025, momentum=0.9, weight_decay=0.0003) #adapt lr linear to batch size
 optimizer_config = dict(grad_clip=dict(max_norm=40, norm_type=2))
 # learning policy
 lr_config = dict(policy='CosineAnnealing', by_epoch=False, min_lr=0)
@@ -95,8 +95,8 @@ evaluation = dict(interval=1, metrics=['top_k_accuracy', 'mean_class_accuracy'],
 early_stopping = dict(
     monitor='loss',
     phase='val',
-    patience=5,
-    min_delta=0.001,
+    patience=3,
+    min_delta=0.01,
     max_epochs=240,
     mode='min')
 log_config = dict(interval=20, hooks=[dict(type='TextLoggerHook')])
