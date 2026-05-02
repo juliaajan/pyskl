@@ -104,4 +104,4 @@ early_stopping = dict(
 
 log_config = dict(interval=20, hooks=[dict(type='TextLoggerHook')])
 log_level = 'INFO'
-work_dir = './work_dirs/julia/mediapipe_wlasl300_noface_earlystoppingtest_loss' #TODO
+work_dir = './work_dirs/julia/lr_tests/mediapipe_wlasl300_noface_earlystoppingtest_loss_baserecognizer' #TODO

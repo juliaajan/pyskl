@@ -127,10 +127,10 @@ class BaseRecognizer(nn.Module, metaclass=ABCMeta):
                 which may be a weighted sum of all losses, log_vars contains
                 all the variables to be sent to the logger.
         """
-        log_vars = OrderedDict()
+        log_vars = OrderedDict() #here
         for loss_name, loss_value in losses.items():
             if isinstance(loss_value, torch.Tensor):
-                log_vars[loss_name] = loss_value.mean()
+                log_vars[loss_name] = loss_value.mean() #here
             elif isinstance(loss_value, list):
                 log_vars[loss_name] = sum(_loss.mean() for _loss in loss_value)
             else:
@@ -184,8 +184,9 @@ class BaseRecognizer(nn.Module, metaclass=ABCMeta):
                 averaging the logs.
         """
         losses = self(**data_batch, return_loss=True)
+       
 
-        loss, log_vars = self._parse_losses(losses)
+        loss, log_vars = self._parse_losses(losses) #here
 
         outputs = dict(
             loss=loss,

@@ -188,7 +188,7 @@ class DistEvalHook(BasicDistEvalHook):
 
     def evaluate(self, runner, results):
         key_score = super().evaluate(runner, results)
-
+    
         if runner.meta is None:
             runner.meta = dict()
         runner.meta.setdefault('hook_msgs', dict())
