@@ -62,7 +62,7 @@ val_pipeline = [
     dict(type='GeneratePoseTarget', with_kp=True, with_limb=False),
     dict(type='FormatShape', input_format='NCTHW_Heatmap'),
     dict(type='Collect', keys=['imgs', 'label'], meta_keys=[]),
-    dict(type='ToTensor', keys=['imgs'])
+    dict(type='ToTensor', keys=['imgs', 'label'])
 ]
 test_pipeline = [
     dict(type='UniformSampleFrames', clip_len=12, num_clips=1), #for faster inference, multi-clip testing can be disabled here by setting num_clips=1
@@ -104,4 +104,4 @@ early_stopping = dict(
 
 log_config = dict(interval=20, hooks=[dict(type='TextLoggerHook')])
 log_level = 'INFO'
-work_dir = './work_dirs/julia/lr_tests/mediapipe_wlasl300_noface_earlystoppingtest_loss_baserecognizer' #TODO
+work_dir = './work_dirs/julia/lr_tests/mediapipe_wlasl300_noface_earlystoppingtest_loss_printtop1val_andgetLossFromEval5' #TODO

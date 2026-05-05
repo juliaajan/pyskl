@@ -4,13 +4,14 @@
 import warnings
 from numbers import Number
 from typing import Callable, Dict
+import torch
+
 
 import numpy as np
 from mmcv.runner import DistEvalHook as BasicDistEvalHook, Hook
 
-   
 class EarlyStoppingHook(Hook):
-    r"""Stop training when a monitored metric has stopped improving.
+    """Stop training when a monitored metric has stopped improving.
 
     Args:
         monitor(str): The metric to monitor for improvement, e.g. 'top1_acc', 'loss'.
@@ -79,8 +80,13 @@ class EarlyStoppingHook(Hook):
             
     def after_train_epoch(self, runner):
         runner.log_buffer.average()
+        #runner.logger.info("############## LOSS (aus log buffer)")
+        #runner.logger.info(f"Loss : {runner.log_buffer.output['loss']}")
         runner.logger.info("############## LOSS")
-        runner.logger.info(f"Loss : {runner.log_buffer.output['loss']}")
+        #runner.logger.info("############## LOSS (aus altem buffer über hook.msg)")
+        #runner.logger.info(f"Loss : {runner.meta.get('hook_msgs', {}).get('last_eval_res', {})}")
+        runner.logger.info(runner.log_buffer.output['loss'])
+        #TODO: dafür sorgen dass logbuffer nicht mehr überschreibe und das hier weiterhin verwenden kann
         self._run_early_stopping_check(runner, runner.log_buffer.output)
 
 
@@ -98,6 +104,13 @@ class EarlyStoppingHook(Hook):
         if self.phase == 'val' and self.monitor == 'top1_acc':
             val_logs = runner.meta.get('hook_msgs', {}).get('last_eval_res', {})
             monitor = val_logs.get(self.monitor)
+        elif self.phase =='val' and self.monitor == 'loss':
+            val_logs = runner.meta.get('hook_msgs', {}).get('last_val_loss', {})
+            monitor = val_logs.get('val_loss')
+
+            runner.logger.info("##### Validation loss von mir geholt")
+            runner.logger.info(monitor) #sollte nicht gleicher wert sein wie unter "LOSS (aus log buffer)"", den bisher verwende, sondern anderer wert
+
         else:
             monitor = logs.get(self.monitor).squeeze()
 
@@ -185,6 +198,52 @@ class DistEvalHook(BasicDistEvalHook):
         n = self._find_n(runner)
         assert n is not None
         return self.every_n_epochs(runner, n)
+    
+    #add method to get validation losses, as these are not saved by default after validation
+    def _compute_val_loss(self, runner):
+        model = runner.model
+        model.eval()
+
+        old_output = dict(runner.log_buffer.output) if hasattr(runner.log_buffer, 'output') else {}
+        #TODO: wieder raus
+        #runner.logger.info("############## OLD OUTPUT (vor Berechnung val loss)")
+        #runner.logger.info(old_output)
+        #runner.logger.info(runner.log_buffer.output)
+
+        runner.log_buffer.clear()
+        runner.log_buffer.clear_output()
+
+        last_num_samples = None
+
+        for data in self.dataloader:
+            with torch.no_grad():
+                outputs = model.train_step(data, runner.optimizer)
+
+            if isinstance(outputs, dict) and 'log_vars' in outputs:
+                runner.log_buffer.update(outputs['log_vars'], outputs.get('num_samples', 1))
+                last_num_samples = outputs.get('num_samples', 1)
+
+        if last_num_samples is None:
+            val_loss_logs = {}
+        else:
+            runner.log_buffer.average(last_num_samples)
+            val_loss_logs = {
+                f'val_{k}': float(v)
+                for k, v in runner.log_buffer.output.items()
+                if isinstance(v, Number)
+            }
+
+        runner.log_buffer.clear()
+        runner.log_buffer.clear_output()
+        runner.log_buffer.output.update(old_output)
+        #TODO: wieder raus
+        #runner.logger.info("##############  OUTPUT (nach Berechnung val loss)")
+        #runner.logger.info(old_output)
+        #runner.logger.info(runner.log_buffer.output)
+
+
+        return val_loss_logs
+
 
     def evaluate(self, runner, results):
         key_score = super().evaluate(runner, results)
@@ -199,7 +258,13 @@ class DistEvalHook(BasicDistEvalHook):
             for k, v in runner.log_buffer.output.items()
             if isinstance(v, Number)
         }
+
+        #get val loss logs
+        #val_loss_logs = self._compute_val_loss(runner)
+
         runner.meta['hook_msgs']['last_eval_res'] = eval_logs
+        #runner.meta['hook_msgs']['last_val_loss'] = val_loss_logs
+
 
         return key_score
 
