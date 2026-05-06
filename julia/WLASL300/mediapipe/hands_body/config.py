@@ -101,4 +101,4 @@ early_stopping = dict(
     mode='min')
 log_config = dict(interval=20, hooks=[dict(type='TextLoggerHook')])
 log_level = 'INFO'
-work_dir = './work_dirs/julia/mediapipe_wlasl300_noface_240epochs_flip_earlyStopping_loss_Resize128' #TODO
+work_dir = './work_dirs/julia/mediapipe_wlasl300_noface_240epochs_flip_earlyStopping_loss_Resize128_correctedValLoss' #TODO
