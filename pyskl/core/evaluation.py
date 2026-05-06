@@ -80,13 +80,8 @@ class EarlyStoppingHook(Hook):
             
     def after_train_epoch(self, runner):
         runner.log_buffer.average()
-        #runner.logger.info("############## LOSS (aus log buffer)")
-        #runner.logger.info(f"Loss : {runner.log_buffer.output['loss']}")
-        runner.logger.info("############## LOSS")
-        #runner.logger.info("############## LOSS (aus altem buffer über hook.msg)")
-        #runner.logger.info(f"Loss : {runner.meta.get('hook_msgs', {}).get('last_eval_res', {})}")
-        runner.logger.info(runner.log_buffer.output['loss'])
-        #TODO: dafür sorgen dass logbuffer nicht mehr überschreibe und das hier weiterhin verwenden kann
+        runner.logger.info(f"Loss (aus log buffer) : {runner.log_buffer.output['loss'] if 'loss' in runner.log_buffer.output else 'None'} ")
+        #runner.logger.info(f"Loss (aus hook.msg) : {runner.meta.get('hook_msgs', {}).get('last_eval_res', {}).get('loss', 'None')} ")
         self._run_early_stopping_check(runner, runner.log_buffer.output)
 
 
@@ -104,12 +99,12 @@ class EarlyStoppingHook(Hook):
         if self.phase == 'val' and self.monitor == 'top1_acc':
             val_logs = runner.meta.get('hook_msgs', {}).get('last_eval_res', {})
             monitor = val_logs.get(self.monitor)
+            #workaround to get validation loss from _compute_val_loss
         elif self.phase =='val' and self.monitor == 'loss':
             val_logs = runner.meta.get('hook_msgs', {}).get('last_val_loss', {})
             monitor = val_logs.get('val_loss')
 
-            runner.logger.info("##### Validation loss von mir geholt")
-            runner.logger.info(monitor) #sollte nicht gleicher wert sein wie unter "LOSS (aus log buffer)"", den bisher verwende, sondern anderer wert
+            runner.logger.info(f"ValidationLoss : {monitor}")
 
         else:
             monitor = logs.get(self.monitor).squeeze()
@@ -205,44 +200,37 @@ class DistEvalHook(BasicDistEvalHook):
         model.eval()
 
         old_output = dict(runner.log_buffer.output) if hasattr(runner.log_buffer, 'output') else {}
-        #TODO: wieder raus
-        #runner.logger.info("############## OLD OUTPUT (vor Berechnung val loss)")
-        #runner.logger.info(old_output)
-        #runner.logger.info(runner.log_buffer.output)
+        #TODO. weg
+        runner.logger.info("Output buffer content (before validation loss computation)")
+        runner.logger.info(runner.log_buffer.output)
+        runner.logger.info(old_output)
 
-        runner.log_buffer.clear()
-        runner.log_buffer.clear_output()
-
-        last_num_samples = None
-
+        val_sums = {}
+        total_samples = 0
+        
         for data in self.dataloader:
             with torch.no_grad():
                 outputs = model.train_step(data, runner.optimizer)
-
             if isinstance(outputs, dict) and 'log_vars' in outputs:
-                runner.log_buffer.update(outputs['log_vars'], outputs.get('num_samples', 1))
-                last_num_samples = outputs.get('num_samples', 1)
-
-        if last_num_samples is None:
-            val_loss_logs = {}
-        else:
-            runner.log_buffer.average(last_num_samples)
-            val_loss_logs = {
-                f'val_{k}': float(v)
-                for k, v in runner.log_buffer.output.items()
-                if isinstance(v, Number)
-            }
-
-        runner.log_buffer.clear()
-        runner.log_buffer.clear_output()
-        runner.log_buffer.output.update(old_output)
-        #TODO: wieder raus
-        #runner.logger.info("##############  OUTPUT (nach Berechnung val loss)")
-        #runner.logger.info(old_output)
-        #runner.logger.info(runner.log_buffer.output)
-
-
+                num_samples = outputs.get('num_samples', 1)
+                if not isinstance(num_samples, Number):
+                    num_samples = 1
+                total_samples += num_samples
+                for k, v in outputs['log_vars'].items():
+                    if isinstance(v, Number):
+                        val_sums[k] = val_sums.get(k, 0.0) + float(v) * num_samples
+        
+        if model.training:
+            model.eval()
+        
+        if total_samples == 0:
+            return {}
+        
+        val_loss_logs = {f'val_{k}': v / total_samples for k, v in val_sums.items()}
+        
         return val_loss_logs
+    
+
 
 
     def evaluate(self, runner, results):
@@ -260,10 +248,13 @@ class DistEvalHook(BasicDistEvalHook):
         }
 
         #get val loss logs
-        #val_loss_logs = self._compute_val_loss(runner)
+        val_loss_logs = self._compute_val_loss(runner)
+
+        runner.logger.info("Output buffer content after validation loss computatuon")
+        runner.logger.info(runner.log_buffer.output)
 
         runner.meta['hook_msgs']['last_eval_res'] = eval_logs
-        #runner.meta['hook_msgs']['last_val_loss'] = val_loss_logs
+        runner.meta['hook_msgs']['last_val_loss'] = val_loss_logs
 
 
         return key_score
