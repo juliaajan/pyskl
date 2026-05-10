@@ -95,7 +95,7 @@ evaluation = dict(interval=1, metrics=['top_k_accuracy', 'mean_class_accuracy'],
 early_stopping = dict(
     monitor='loss',
     phase='val',
-    patience=3,
+    patience=5,
     min_delta=0.01,
     max_epochs=240,
     mode='min')
