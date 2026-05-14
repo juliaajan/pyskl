@@ -84,7 +84,7 @@ data = dict(
     val=dict(type=dataset_type, ann_file=ann_file, split='val', pipeline=val_pipeline), #val split
     test=dict(type=dataset_type, ann_file=ann_file, split='test', pipeline=test_pipeline)) #test split
 # optimizer
-optimizer = dict(type='SGD', lr=0.001, momentum=0.9, weight_decay=0.0003) #adapt lr linear to batch size
+optimizer = dict(type='SGD', lr=0.0001, momentum=0.9, weight_decay=0.0003) #adapt lr linear to batch size
 optimizer_config = dict(grad_clip=dict(max_norm=40, norm_type=2))
 # learning policy
 lr_config = dict(policy='CosineAnnealing', by_epoch=False, min_lr=0)
@@ -95,10 +95,10 @@ evaluation = dict(interval=1, metrics=['top_k_accuracy', 'mean_class_accuracy'],
 early_stopping = dict(
     monitor='loss',
     phase='val',
-    patience=7,
+    patience=10,
     min_delta=0.01,
     max_epochs=240,
     mode='min')
 log_config = dict(interval=20, hooks=[dict(type='TextLoggerHook')])
 log_level = 'INFO'
-work_dir = './work_dirs/julia/mediapipe_wlasl300_noface_240epochs_flip_earlyStopping_loss_Resize128_correctedValLoss_lr_0_001' #TODO
+work_dir = './work_dirs/julia/mediapipe_wlasl300_noface_240epochs_flip_earlyStopping_loss_Resize128_correctedValLoss_lr_0_0001' #TODO
