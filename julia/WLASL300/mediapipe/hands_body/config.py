@@ -96,7 +96,7 @@ early_stopping = dict(
     monitor='loss',
     phase='val',
     patience=10,
-    min_delta=0.01,
+    min_delta=0.00001,
     max_epochs=240,
     mode='min')
 log_config = dict(interval=20, hooks=[dict(type='TextLoggerHook')])
