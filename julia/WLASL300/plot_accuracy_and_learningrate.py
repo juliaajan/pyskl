@@ -18,19 +18,28 @@ def get_validation_loss(path):
     with open(path, 'r') as f:
         for line in f:
             #search for the correct line that loggs the validation loss
-            match = re.search(r'pyskl - INFO - ValidationLoss : [0-9].[0-9]+', line)
-            matchOld = re.search(r'pyskl - INFO - Loss : [0-9].[0-9]+', line)
+            match = re.search(r'pyskl - INFO - ValidationLoss : [0-9]+\.[0-9]+', line)
+            matchOld = re.search(r'pyskl - INFO - Loss : [0-9]+\.[0-9]+', line)
             
             if match:
                 val_loss = line.split('ValidationLoss : ')[1]
                 #print(val_loss)
                 val_losses.append(float(val_loss))
+                print(match)
                 
             #backup for older log files where i only logged "Loss"
             elif matchOld:
                 val_loss = line.split('Loss : ')[1]
                 val_losses.append(float(val_loss))
             
+
+    #save val losses in extra log file
+    log_path = path.replace('.log', '_val_losses.log')
+    with open(log_path, 'w') as f:
+        for i, loss in enumerate(val_losses):
+            f.write(f"Epoch: {i+1}, val_loss: {loss}\n")
+    print(f"Saved validation losses to {log_path}")
+
 
     return val_losses
 
@@ -39,6 +48,7 @@ def plot(path):
     val_losses = get_validation_loss(path)
     print("Val Losses:")
     print(val_losses)
+
 
     #data = {"mode": "train", "epoch": 1, "iter": 20, "lr": 0.05, "memory": 5082, "data_time": 0.48623, "top1_acc": 0.0, "top5_acc": 0.0, "loss_cls": 5.7752, "loss": 5.7752, "grad_norm": 2.36381, "time": 0.84397}
 
@@ -78,6 +88,8 @@ def plot(path):
     val = df[df['mode'] == 'val'].groupby('epoch', as_index=False).agg({'top1_acc': 'mean', 'loss': 'mean'})
     #add val losses from different log file
     if (len(val) != len(val_losses)):
+        print(len(val))
+        print(len(val_losses))
         raise ValueError(f"Number of validation epochs in log file ({len(val)}) does not match number of validation losses parsed from log file ({len(val_losses)}).")
     val['loss'] = val_losses
     print(val[[ 'epoch', 'top1_acc', 'loss']].head())
@@ -88,6 +100,16 @@ def plot(path):
     plt.savefig(fig_path)
     print(f"Saved validation loss and accuracy plot to {fig_path}") 
     plt.show()
+
+    #plot val accuracy only
+    val.plot(x='epoch', y='top1_acc', color='orange', label='Val Accuracy (top1)')
+
+    fig_path = path.replace('.log.json', '_val_accuracy_only.png')
+    plt.savefig(fig_path)
+    print(f"Saved validation accuracy plot to {fig_path}") 
+    plt.show()
+
+
 
     #plot train and val loss together
     #train_val = df.groupby('epoch', as_index=False).agg({'loss': 'mean'})

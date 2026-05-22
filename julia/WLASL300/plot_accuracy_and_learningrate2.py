@@ -19,8 +19,8 @@ def get_validation_loss(pathForVal):
     with open(pathForVal, 'r') as f:
         for line in f:
             #search for the correct line that loggs the validation loss
-            match = re.search(r'pyskl - INFO - ValidationLoss : [0-9].[0-9]+', line)
-            matchOld = re.search(r'pyskl - INFO - Loss : [0-9].[0-9]+', line)
+            match = re.search(r'pyskl - INFO - ValidationLoss : [0-9]+\.[0-9]+', line)
+            matchOld = re.search(r'pyskl - INFO - Loss : [0-9]+\.[0-9]+', line)
             
             if match:
                 val_loss = line.split('ValidationLoss : ')[1]
