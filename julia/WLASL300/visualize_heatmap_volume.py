@@ -4,14 +4,11 @@ import os.path as osp
 import decord
 import copy as cp
 import numpy as np
-import matplotlib.pyplot as plt
-import urllib
 import moviepy.editor as mpy
-import random as rd
 from pyskl.smp import *
 from mmpose.apis import vis_pose_result
 from mmpose.models import TopDown
-from mmcv import load, dump
+from mmcv import load
 import matplotlib.cm as cm
 from pyskl.datasets.pipelines import Compose
 #original source: pyskl/demo/visualize_heatmap_volume.ipynb
@@ -105,13 +102,13 @@ if __name__ == '__main__':
         description='Visualise heatmaps')
     parser.add_argument('ann_file', type=str, help='path to the pickle file, eg wlasl300/annos.pkl')
     parser.add_argument('category_mappings', type=str, help='path to the mappings of gloss indices to gloss names, eg wlasl300/label_mappings.txt')
-    parser.add_argument('video_file', type=str, help='path to video that should be used for visualization, eg WLASL/start_kit/videos/1234.mp4')
+    parser.add_argument('video_id', type=str, help='Id of the video that should be used for visualization, eg 07383')
     parser.add_argument('output_dir', type=str, help='path to where the vsualization videos should be saved')
     args = parser.parse_args()
 
     ann_file = args.ann_file
     category_mappings = args.category_mappings
-    video_file = args.video_file
+    video_id = args.video_id
     output_dir = args.output_dir
 
 
@@ -162,16 +159,14 @@ if __name__ == '__main__':
 
 
     #get the video
-    video_file_basename= osp.basename(video_file) #only filename and ending, e.g. 1234.mp4
-    frame_dir = osp.splitext(video_file_basename)[0] #get filename without .mp4 ending
     #vid_path = osp.join(video_file, vid) use video_file directly
-    anno_matches = [x for x in wlasl_annos if x['frame_dir'] == frame_dir]
+    anno_matches = [x for x in wlasl_annos if x['frame_dir'] == video_id]
     if len(anno_matches) == 0:
-        print("No annotation found for video:", video_file, " with frame_dir:", frame_dir)
+        print("No annotation found for video:", video_id)
         exit(1)
 
     anno = anno_matches[0]
-    print("Found annotation for video:", video_file)
+    print("Found annotation for video:", video_id)
 
     # Visualize Skeleton
     #print(f"Creating skeleton visualization for {anno['frame_dir']}...")
@@ -191,7 +186,7 @@ if __name__ == '__main__':
     #save as video
     heatmap_output = osp.join(output_dir, f'{anno["frame_dir"]}_keypoint_2d_denorm_from_anno_heatmap.mp4')
     vid.write_videofile(heatmap_output, codec='libx264', audio=False, logger=None)
-    print(f"Saved heatmap video: {heatmap_output}")
+    print(f"Saved heatmap video: {heatmap_output} to: {output_dir}")
 
     #limbs
     limb_heatmap = get_pseudo_heatmap(cp.deepcopy(anno), 'limb')
@@ -201,4 +196,4 @@ if __name__ == '__main__':
     #save as video
     limb_output = osp.join(output_dir, f'{anno["frame_dir"]}_limb_2d_denorm_heatmap.mp4')
     vid.write_videofile(limb_output, codec='libx264', audio=False, logger=None)
-    print(f"Saved limb heatmap video: {limb_output}")
+    print(f"Saved limb heatmap video: {limb_output} to: {output_dir}")
