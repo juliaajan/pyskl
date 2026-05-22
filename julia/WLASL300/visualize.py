@@ -5,7 +5,15 @@ import copy as cp
 import cv2
 import moviepy.editor as mpy
 import numpy as np
-from mmcv import load
+import mmcv
+try:
+    from mmcv import load #for remote labpc
+except (ImportError, ModuleNotFoundError):
+    try:
+        from mmengine.fileio import load #for windows
+    except (ImportError, ModuleNotFoundError) as e:
+        raise ModuleNotFoundError(f"Weder mmcv.load noch mmengine.fileio.load konnten importiert werden. Fehlermeldung: {e}" )
+
 from tqdm import tqdm
 
 
@@ -48,6 +56,8 @@ skeleton_map = dict(
 
 def load_frames(vid):
     vid = cv2.VideoCapture(vid)
+    if not vid.isOpened():
+        raise ValueError(f"Could not open video: {vid}")
     images = []
     success, image = vid.read()
     while success:
@@ -121,6 +131,8 @@ def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(1080, 1920), fps=24, video=Non
                   for i in range(total_frames)]
     else:
         frames = load_frames(video)
+        if len(frames) == 0:
+            raise ValueError(f"No frames read from video: {video}")
         original_shape = frames[0].shape[:2]
         if out_shape is None:
             out_shape = original_shape
@@ -140,8 +152,13 @@ def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(1080, 1920), fps=24, video=Non
    
    #TODO: ggf keypoints in Wertebereich ihrer image_shape clippen
 
+    #make sure that the given video file has the same length as the amount of frames specified in the annotations of the corresponding videoid
+    #if not, take the smaller amount of frames
+    n_frames = min(total_frames, len(frames))
+    if len(frames) != total_frames:
+        print(f"WARNUNG: frames={len(frames)} != total_frames={total_frames}. Nutze n_frames={n_frames}.")
     #prepare keypoints per frame
-    kps = [kp[:, i] for i in range(total_frames)]
+    kps = [kp[:, i] for i in range(n_frames)]
 
 
     body_edges = skeleton_map['mediapipe_body']
@@ -157,7 +174,7 @@ def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(1080, 1920), fps=24, video=Non
         'f': ((0x8d, 0x99, 0xae), (0x2b, 0x2d, 0x42))
     }
 
-    for i in tqdm(range(total_frames)):
+    for i in tqdm(range(n_frames)):
         kp_frame = kps[i]
         for m in range(kp_frame.shape[0]):  # For each person
             ske = kp_frame[m]
