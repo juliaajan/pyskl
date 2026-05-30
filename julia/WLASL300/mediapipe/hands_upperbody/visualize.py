@@ -178,10 +178,10 @@ def Vis2DPoseMediaPipe(item, thre=0.0, out_shape=(1080, 1920), fps=25, video=Non
                     j1, j2 = ske[st], ske[ed]
                     j1x, j1y, j2x, j2y = int(j1[0]), int(j1[1]), int(j2[0]), int(j2[1])
                     #set the confidence (was appended from keyypoint_score to kp)
-                    if kp.shape[-1] == 4:
-                        conf = min(j1[3], j2[3])  #index 3 = confidence score
+                    if kp.shape[-1] == 3:
+                        conf = min(j1[2], j2[2])  #index 2 = confidence score
                     else:
-                        conf = 1.0  #fallback if no confidence provided - assume valid keypoint
+                        conf = 0.0  #fallback if no confidence provided - assume valid keypoint
                     
                     if conf > thre:
                         co_tup = color_map[co]
@@ -195,10 +195,10 @@ def Vis2DPoseMediaPipe(item, thre=0.0, out_shape=(1080, 1920), fps=25, video=Non
                     j1, j2 = ske[st], ske[ed]
                     j1x, j1y, j2x, j2y = int(j1[0]), int(j1[1]), int(j2[0]), int(j2[1])
                     #set the confidence (was appended from keyypoint_score to kp)
-                    if kp.shape[-1] == 4:
-                        conf = min(j1[3], j2[3])  #index 3 = confidence score
+                    if kp.shape[-1] == 3:
+                        conf = min(j1[2], j2[2])  #index 2 = confidence score
                     else:
-                        conf = 1.0  #fallback if no confidence provided - assume valid keypoint
+                        conf = 0.0  #fallback if no confidence provided - assume valid keypoint
                     
                     if conf > thre:
                         co_tup = color_map[co]
@@ -212,10 +212,10 @@ def Vis2DPoseMediaPipe(item, thre=0.0, out_shape=(1080, 1920), fps=25, video=Non
                     j1, j2 = ske[st], ske[ed]
                     j1x, j1y, j2x, j2y = int(j1[0]), int(j1[1]), int(j2[0]), int(j2[1])
                     #set the confidence (was appended from keyypoint_score to kp)
-                    if kp.shape[-1] == 4:
-                        conf = min(j1[3], j2[3])  #index 3 = confidence score
+                    if kp.shape[-1] == 3:
+                        conf = min(j1[2], j2[2])  #index 2 = confidence score
                     else:
-                        conf = 1.0  #fallback if no confidence provided - assume valid keypoint
+                        conf = 0.0  #fallback if no confidence provided - assume valid keypoint
                     
                     if conf > thre:
                         co_tup = color_map[co]
@@ -248,10 +248,10 @@ def Vis2DPoseMediaPipe(item, thre=0.0, out_shape=(1080, 1920), fps=25, video=Non
                     j1, j2 = left_hand[st], left_hand[ed]
                     j1x, j1y, j2x, j2y = int(j1[0]), int(j1[1]), int(j2[0]), int(j2[1])
                     #set the confidence
-                    if kp.shape[-1] == 4:
-                        conf = min(j1[3], j2[3]) #index 3 = confidence score
+                    if kp.shape[-1] == 3:
+                        conf = min(j1[2], j2[2]) #index 2 = confidence score
                     else:
-                        conf = 1.0  #fallback if no confidence provided - assume valid keypoint
+                        conf = 0.0  #fallback if no confidence provided - assume valid keypoint
                     if conf > thre:
                         color = (255, 0, 0)  # Blue for left hand
                         frames[i] = cv2.line(frames[i], (j1x, j1y), (j2x, j2y), color, thickness=2)
@@ -261,10 +261,10 @@ def Vis2DPoseMediaPipe(item, thre=0.0, out_shape=(1080, 1920), fps=25, video=Non
                     j1, j2 = right_hand[st], right_hand[ed]
                     j1x, j1y, j2x, j2y = int(j1[0]), int(j1[1]), int(j2[0]), int(j2[1])
                     #set the confidence
-                    if kp.shape[-1] == 4:
-                        conf = min(j1[3], j2[3]) #index 3 = confidence score
+                    if kp.shape[-1] == 3:
+                        conf = min(j1[2], j2[2]) #index 2 = confidence score
                     else:
-                        conf = 1.0  #fallback if no confidence provided - assume valid keypoint
+                        conf = 0.0  #fallback if no confidence provided - assume valid keypoint
                     if conf > thre:
                         color = (0, 0, 255)  # Red for right hand
                         frames[i] = cv2.line(frames[i], (j1x, j1y), (j2x, j2y), color, thickness=2)
