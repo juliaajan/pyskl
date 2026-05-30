@@ -36,6 +36,14 @@ skeleton_map = dict(
         (12, 24, 'rd'),  # Right side
         (23, 24, 't'),  # Hip
     ],
+     mediapipe_shoulders_arms=[
+        # shoulders + arms connections WITHOUT hips (first 23 keypoints, indices 0-22)
+        (0, 1, 'f'), (1, 2, 'f'), (2, 3, 'f'), (3, 7, 'f'),  # Face
+        (0, 4, 'f'), (4, 5, 'f'), (5, 6, 'f'), (6, 8, 'f'),  # Face
+        (9, 10, 'f'),  # Mouth
+        (11, 12, 't'), (11, 13, 'lu'), (13, 15, 'lu'),  # Left arm
+        (12, 14, 'ru'), (14, 16, 'ru'),  # Right arm
+    ],
     mediapipe_hand=[
         # Hand connections (21 keypoints per hand)
         (0, 1, 't'), (1, 2, 'f'), (2, 3, 'f'), (3, 4, 'f'),      # Thumb
@@ -79,8 +87,9 @@ def display_keypoints_on_video(anno_pickle_path, path_video, output_path):
     show_hands=True,      # Hände anzeigen
     show_body=False,       # Körper anzeigen
     show_upperbody=True,   # Oberkörper anzeigen
-    thre=0.3,             # Confidence threshold
-    fps=24
+    show_shoulders_arms=False,  # Schultern und Arme anzeigen
+    thre=0.0,             # Confidence threshold
+    fps=25
 )
     
     output_file = os.path.join(output_path, f'skeleton_vis_noface_upperbody{video_id}.mp4')
@@ -89,7 +98,7 @@ def display_keypoints_on_video(anno_pickle_path, path_video, output_path):
 
 
 
-def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(1080, 1920), fps=24, video=None, show_face=True, show_hands=True, show_body=True, show_upperbody=False):
+def Vis2DPoseMediaPipe(item, thre=0.0, out_shape=(1080, 1920), fps=25, video=None, show_face=True, show_hands=True, show_body=True, show_upperbody=False, show_shoulders_arms=False):
     tx = cp.deepcopy(item)
     item = tx
 
@@ -146,6 +155,7 @@ def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(1080, 1920), fps=24, video=Non
 
     body_edges = skeleton_map['mediapipe_body']
     upperbody_edges = skeleton_map['mediapipe_upperbody']
+    shoulders_arms_edges = skeleton_map['mediapipe_shoulders_arms']
     hand_edges = skeleton_map['mediapipe_hand']
     
     color_map = {
@@ -171,7 +181,7 @@ def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(1080, 1920), fps=24, video=Non
                     if kp.shape[-1] == 4:
                         conf = min(j1[3], j2[3])  #index 3 = confidence score
                     else:
-                        conf = 1.0  #fallback if no confidence provided
+                        conf = 1.0  #fallback if no confidence provided - assume valid keypoint
                     
                     if conf > thre:
                         co_tup = color_map[co]
@@ -188,14 +198,30 @@ def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(1080, 1920), fps=24, video=Non
                     if kp.shape[-1] == 4:
                         conf = min(j1[3], j2[3])  #index 3 = confidence score
                     else:
-                        conf = 1.0  #fallback if no confidence provided
+                        conf = 1.0  #fallback if no confidence provided - assume valid keypoint
                     
                     if conf > thre:
                         co_tup = color_map[co]
                         color = [x + (y - x) * (conf - thre) / 0.8 for x, y in zip(co_tup[0], co_tup[1])]
                         color = tuple([int(x) for x in color])
                         frames[i] = cv2.line(frames[i], (j1x, j1y), (j2x, j2y), color, thickness=2)
-            
+
+            #Draw shoulders and arms instead of whole upper body (keypoints 0-22)
+            elif show_shoulders_arms:
+                for st, ed, co in shoulders_arms_edges:
+                    j1, j2 = ske[st], ske[ed]
+                    j1x, j1y, j2x, j2y = int(j1[0]), int(j1[1]), int(j2[0]), int(j2[1])
+                    #set the confidence (was appended from keyypoint_score to kp)
+                    if kp.shape[-1] == 4:
+                        conf = min(j1[3], j2[3])  #index 3 = confidence score
+                    else:
+                        conf = 1.0  #fallback if no confidence provided - assume valid keypoint
+                    
+                    if conf > thre:
+                        co_tup = color_map[co]
+                        color = [x + (y - x) * (conf - thre) / 0.8 for x, y in zip(co_tup[0], co_tup[1])]
+                        color = tuple([int(x) for x in color])
+                        frames[i] = cv2.line(frames[i], (j1x, j1y), (j2x, j2y), color, thickness=2)
             # Draw hands
             if show_hands:
                 if has_face:
@@ -212,6 +238,10 @@ def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(1080, 1920), fps=24, video=Non
                         #without face and withoug lower body: keypoints 24-45 (left), 46-66 (right)
                         left_hand = ske[25:46]
                         right_hand = ske[46:67]
+                    elif show_shoulders_arms:
+                        #without face and withoug lower body: keypoints 22-43 (left), 44-64 (right)
+                        left_hand = ske[23:44]
+                        right_hand = ske[44:65]
                 
                 # Draw left hand
                 for st, ed, co in hand_edges:
@@ -221,7 +251,7 @@ def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(1080, 1920), fps=24, video=Non
                     if kp.shape[-1] == 4:
                         conf = min(j1[3], j2[3]) #index 3 = confidence score
                     else:
-                        conf = 1.0  #fallback if no confidence provided
+                        conf = 1.0  #fallback if no confidence provided - assume valid keypoint
                     if conf > thre:
                         color = (255, 0, 0)  # Blue for left hand
                         frames[i] = cv2.line(frames[i], (j1x, j1y), (j2x, j2y), color, thickness=2)
@@ -234,7 +264,7 @@ def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(1080, 1920), fps=24, video=Non
                     if kp.shape[-1] == 4:
                         conf = min(j1[3], j2[3]) #index 3 = confidence score
                     else:
-                        conf = 1.0  #fallback if no confidence provided
+                        conf = 1.0  #fallback if no confidence provided - assume valid keypoint
                     if conf > thre:
                         color = (0, 0, 255)  # Red for right hand
                         frames[i] = cv2.line(frames[i], (j1x, j1y), (j2x, j2y), color, thickness=2)
@@ -249,7 +279,7 @@ def Vis2DPoseMediaPipe(item, thre=0.2, out_shape=(1080, 1920), fps=24, video=Non
                     #if kp.shape[-1] == 4:
                        # conf = fkp[3]  
                     #else:
-                      #  conf = 1.0
+                      #  01.0
                     if conf > thre:
                         frames[i] = cv2.circle(frames[i], (x, y), 1, (0, 255, 0), -1)
 
