@@ -1,5 +1,6 @@
 #Starting from the annotation file including keypoints for the hands, and face, upper body and hands from the body model,
-#this file removes the hip keypoints to enable training with hands_shoulders_arms.py
+#this file removes all body-related keypoints
+
 
 import argparse
 import os
@@ -9,10 +10,10 @@ from mmcv import load, dump
 
 def remove_hip_keypoints(input_path):
     """
-    Remove hip keypoints (indices 23 and 24) from annotation pickle file.
+    Remove all keypoints from the body-model from annotation pickle file.
     
     Input format: (persons, frames, keypoints, 2) with 67 keypoints
-    Output format: (persons, frames, keypoints, 2) with 65 keypoints (67 - 2 hips)
+    Output format: (persons, frames, keypoints, 2) with 42 hand keypoints
     """
 
     print(f"Loading annotations from: {input_path}")
@@ -23,8 +24,8 @@ def remove_hip_keypoints(input_path):
     split_dict = anno_dict['split']
     
     #upperbody keypoints are indices 0-24, followed by 21 for left hand and 21 for right hand
-    #indices 23 and 24 (hips) should be removed
-    indices_to_keep = [i for i in range(67) if i not in [23, 24]]
+    #indices 0-24 should be removed
+    indices_to_keep = [i for i in range(67) if i > 24]
     
 
     for i, anno in enumerate(annotations):
@@ -32,11 +33,11 @@ def remove_hip_keypoints(input_path):
         if (i+1) % 100 == 0:
             print(f"Processing video {i+1}/{len(annotations)}")
 
-        #remove hip keypoints, keep the rest
+        #remove uppebody keypoints, keep the rest
         #keypoint shape: (num_persons, num_frames, num_keypoints, 2 coordinates)
         anno['keypoint'] = anno['keypoint'][:, :, indices_to_keep, :]
         
-        #remove hip keypoint scores, keep the rest
+        #remove uppebody keypoint scores, keep the rest
         #keypoint_score shape: (num_persons, num_frames, num_keypoints)
         anno['keypoint_score'] = anno['keypoint_score'][:, :, indices_to_keep]
     
@@ -48,18 +49,18 @@ def remove_hip_keypoints(input_path):
     
     #save results
     output_path = os.path.split(input_path)[0] #get path to input file without filename
-    output_filename = "pyskl_mediapipe_annos_2d_denormalized_NOFACE_SHOULDERS_ARMS.pkl"
+    output_filename = "pyskl_mediapipe_annos_2d_denormalized_NO_KPS_FROM_BODYMODEL.pkl"
     output_file= os.path.join(output_path, output_filename) 
 
     dump(output_dict, output_file)
 
-    print(f"Successfully saved annotations with removed hip keypoints to: {output_file}")
+    print(f"Successfully saved annotations with removed body keypoints to: {output_file}")
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='Remove hip keypoints from annotation-pickle')
-    #fileName: pyskl_mediapipe_annos_2d_denormalized_NOFACE_UPPERBODY.pkl
-    parser.add_argument('input_path', type=str, help='input path to the annotation pickle file containing upperbody and face keypoints')
+        description='Remove first 25 body keypoints from annotation-pickle')
+    #original fileName: pyskl_mediapipe_annos_2d_denormalized_NOFACE_UPPERBODY.pkl
+    parser.add_argument('input_path', type=str, help='input path to the annotation pickle file containing 25 upperbody and face keypoints and hand keypoints from hand model')
     args = parser.parse_args()
     return args
 
