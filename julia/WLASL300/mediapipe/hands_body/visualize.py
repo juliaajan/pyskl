@@ -97,6 +97,11 @@ def Vis2DPoseMediaPipe(item, thre=0.0, out_shape=(1080, 1920), fps=25, video=Non
         #concatenate the keypoint scores to kp
         kp = np.concatenate([kp, kpscore[..., None]], -1) #shape now: (M, T, V, C+1)
 
+    #scale kps by factor 0.5 to show all keypoints, including estimated lower body kps, even if they are not in the original video
+    #kp = kp.copy()
+    #kp[..., 0] *= 0.5  #scale x coordinates
+    #kp[..., 1] *= 0.5  #scale y coordinates
+
     total_frames = None
     #TODO: ist kp.shape die Dimension (x, y , z, score) oder (M, T, V, C+1)?
     assert len(kp.shape) == 4, f"Expected 4 dimensions for each keypoint (M, T, V, C+1), got {len(kp.shape)}"
