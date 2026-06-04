@@ -78,7 +78,6 @@ def vis_skeleton(vid_path, anno, category_name=None, ratio=0.5):
     vis_frames = []
 
     # we need an instance of TopDown model, so build a minimal one
-    #TODO: was passiert hier?
     model = TopDown(backbone=dict(type='ShuffleNetV1'))
 
     for f, kp in zip(frames, kps):
@@ -115,16 +114,16 @@ if __name__ == '__main__':
     keypoint_pipeline = [
         dict(type='PoseDecode'),
         dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
-        dict(type='Resize', scale=(-1, 64)),
-        dict(type='CenterCrop', crop_size=64),
+        dict(type='Resize', scale=(-1, 128)),
+        dict(type='CenterCrop', crop_size=128),
         dict(type='GeneratePoseTarget', with_kp=True, with_limb=False)
     ]
 
     limb_pipeline = [
         dict(type='PoseDecode'),
         dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
-        dict(type='Resize', scale=(-1, 64)),
-        dict(type='CenterCrop', crop_size=64),
+        dict(type='Resize', scale=(-1, 128)),
+        dict(type='CenterCrop', crop_size=128),
         dict(type='GeneratePoseTarget', with_kp=False, with_limb=True)
     ]
 
@@ -135,7 +134,7 @@ if __name__ == '__main__':
         pipeline = Compose(keypoint_pipeline if flag == 'keypoint' else limb_pipeline)
         return pipeline(anno)['imgs']
 
-    def vis_heatmaps(heatmaps, channel=-1, ratio=8):
+    def vis_heatmaps(heatmaps, channel=-1, ratio=16):
         # if channel is -1, draw all keypoints / limbs on the same map
         import matplotlib.cm as cm
         heatmaps = [x.transpose(1, 2, 0) for x in heatmaps]
