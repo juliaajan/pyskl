@@ -309,7 +309,7 @@ if __name__ == "__main__":
 
 
     #save results
-    output_file= os.path.join(args.output_path, "pyskl_mediapipe_annos_2d_denormalized_NOFACE_UPPERBODY.pkl")
+    output_file= os.path.join(args.output_path, "pyskl_mediapipe_annos_2d_denormalized_NOSE_FACE_HANDS.pkl")
     dump(output_dict, output_file)
     print(f"Saved annotations to: {output_file}")
     print(f"Split distribution: {[(k, len(v)) for k, v in split_dict.items()]}")
