@@ -36,13 +36,12 @@ ann_file = 'julia/WLASL300/pyskl_mediapipe_annos_2d_denormalized_NOSE_FACE_HANDS
 #point 0 is the nose which is centered, and therefore neither left nor right keypoint
 #keypoints 1-20 are face keypoints
 #keypoints 21-41 are left hand keypoints, keypoints 42-62 are right hand keypoints
-#[46, 52, 53, 65, 295, 283, 282, 276, 7, 159, 155, 145, 382, 386, 249, 374, 324, 13, 78, 14] #TODO
-#sorted:  7, 13, 14, 46, 52, 53, 65, 78, 145,  155, 159, 249, 276, 282, 283, 295, 324, 374, 382, 386
-#left face: keypoints 7, 46, 52, 53, 65, 145, 155, 159, 324
-#right face: keypoints 78, 249, 276, 282, 283, 295, 374, 382, 386
-#kps 13 and 14  (index 2 and 3) are centered
-left_face = [1, 4, 5, 6, 7, 9, 10, 11, 17 ]
-right_face = [8, 12, 13, 14, 15, 16, 18, 19, 20]
+#[46, 52, 53, 65, 295, 283, 282, 276, 7, 159, 155, 145, 382, 386, 249, 374, 324, 13, 78, 14] 
+#right face: keypoints 46, 52, 53, 65    , 7, 159, 155, 145,      324
+#left face: 295, 283, 282, 276     , 382, 386, 249, 374,       78
+#kps 13 and 14 (index 18 and 20) (and 0 for the nose) are centered
+left_face = [1, 2, 3, 4, 9, 10, 11, 12, 17]
+right_face = [5, 6, 7, 8, 13, 14, 15, 16, 19]
 #left and right hand keypoints each with 21 kps starting at index 21, left hand is extracted first
 left_hand = list(range(21, 42))
 right_hand = list(range(42, 63)) 
@@ -112,4 +111,6 @@ early_stopping = dict(
     mode='min')
 log_config = dict(interval=20, hooks=[dict(type='TextLoggerHook')])
 log_level = 'INFO'
-work_dir = './work_dirs/julia/AblationStudies/hands_nose_face_flip_128px_lr_0_001' #TODO
+work_dir = './work_dirs/julia/AblationStudies/hands_nose_face_flip_128px_lr_0_001_correctedFlip' #TODO
+load_from = 'work_dirs/julia/AblationStudies/hands_nose_face_flip_128px_lr_0_001_wrongFlip/epoch_90.pth'
+
