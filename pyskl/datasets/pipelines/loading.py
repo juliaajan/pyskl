@@ -23,11 +23,24 @@ class DecordInit:
         kwargs (dict): Args for file client.
     """
 
-    def __init__(self, io_backend='disk', num_threads=1, **kwargs):
+    def __init__(self, io_backend='disk', num_threads=1, label_mapping_file=None, **kwargs):
         self.io_backend = io_backend
         self.num_threads = num_threads
         self.kwargs = kwargs
         self.file_client = None
+        self.label_mapping = {}
+
+        if label_mapping_file:
+            self.label_mapping = self._load_label_mapping(label_mapping_file)
+
+    def _load_label_mapping(self, filepath):
+        """Load label_mapping.txt and create a dict with {label_id: label_name}."""
+        label_map = {}
+        with open(filepath, 'r') as f:
+            for line in f:
+                idx, label_name = line.strip().split('\t')
+                label_map[int(idx)] = label_name
+        return label_map
 
     def _get_videoreader(self, filename):
         if osp.splitext(filename)[0] == filename:
@@ -42,7 +55,11 @@ class DecordInit:
             self.file_client = FileClient(self.io_backend, **self.kwargs)
         file_obj = io.BytesIO(self.file_client.get(filename))
         container = decord.VideoReader(file_obj, num_threads=1)
-        return container
+        try:
+            return container
+        except Exception as e:
+            print(f"Error occurred while loading video: {filename}: {e}")
+            raise ValueError(f"Error occurred while loading video: {filename}: {e}")
 
     def __call__(self, results):
         """Perform the Decord initialization.
@@ -53,17 +70,29 @@ class DecordInit:
         """
         if 'filename' not in results:
             assert 'frame_dir' in results
-            results['filename'] = results['frame_dir'] + '.mp4'
+            if self.label_mapping:
+                #add split and label to filename, as WLASL300 videos are in nested folders: 'split/label/12345.mp4' 
+                split = results['split']
+                old_path = results['frame_dir'] #e.g. ../WLASL300/WLASL_300_compressed/10260
+                path_prefix, video_id = old_path.rsplit('/', 1)
+                label_id = results['label']
+                label_name = self.label_mapping.get(label_id)
+                results['filename'] = path_prefix + '/' + split + '/' + label_name + '/' + video_id + '.mp4'               
+            else:
+                results['filename'] = video_id + '.mp4'
+        try:
+            results['video_reader'] = self._get_videoreader(results['filename'])
+        except Exception as e:
+            print(f"Error occurred while loading video: {results['filename']}: {e}")
+            raise ValueError(f"Error occurred while loading video: {results['filename']}: {e}")
 
-        results['video_reader'] = self._get_videoreader(results['filename'])
         if 'total_frames' in results:
-
-            assert results['total_frames'] == len(results['video_reader']), (
-                'SkeFrames', results['total_frames'], 'VideoFrames', len(results['video_reader'])
+            #tolerate only 1 frame difference due to compression
+            assert abs(results['total_frames'] - len(results['video_reader'])) <= 1, (
+                'SkeFrames', results['total_frames'], 'VideoFrames', len(results['video_reader']), 'for video ', results['filename']
             )
         else:
-            results['total_frames'] = len(results['video_reader'])
-
+            results['total_frames'] = len(results['video_reader'])        
         return results
 
     def __repr__(self):

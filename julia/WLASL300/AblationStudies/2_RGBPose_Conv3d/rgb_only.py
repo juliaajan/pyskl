@@ -17,17 +17,18 @@ data_root = '../WLASL300/WLASL_300_compressed'
 #for the RGB stream, the same ann file as for the Pose stream can be used
 #However, as the pose data won't be processed in the RGB stream, it is unimportant which specific skeleton configuration is used here
 ann_file = 'julia/WLASL300/pyskl_mediapipe_annos_2d_denormalized_NOSE_FACE_HANDS.pkl'
-
+label_mappings='julia/WLASL300/label_mapping.txt'
 
 img_norm_cfg = dict(mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_bgr=False)
 
 train_pipeline = [
     dict(type='MMUniformSampleFrames', clip_len=dict(RGB=8), num_clips=1),
+    dict(type='DecordInit', label_mapping_file='julia/WLASL300/label_mapping.txt'),
     dict(type='MMDecode'),
     dict(type='MMCompact', hw_ratio=1., allow_imgpad=True),
     dict(type='Resize', scale=(256, 256), keep_ratio=False),
     dict(type='RandomResizedCrop', area_range=(0.56, 1.0)),
-    dict(type='Resize', scale=(224, 224), keep_ratio=False),
+    dict(type='Resize', scale=(448, 448), keep_ratio=False),
     dict(type='Flip', flip_ratio=0.5), #use flipping 
     dict(type='Normalize', **img_norm_cfg),
     dict(type='FormatShape', input_format='NCTHW'),
@@ -36,9 +37,10 @@ train_pipeline = [
 ]
 val_pipeline = [
     dict(type='MMUniformSampleFrames', clip_len=dict(RGB=8), num_clips=1),
+    dict(type='DecordInit', label_mapping_file='julia/WLASL300/label_mapping.txt'),
     dict(type='MMDecode'),
     dict(type='MMCompact', hw_ratio=1., allow_imgpad=True),
-    dict(type='Resize', scale=(224, 224), keep_ratio=False),
+    dict(type='Resize', scale=(448, 448), keep_ratio=False),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='FormatShape', input_format='NCTHW'),
     dict(type='Collect', keys=['imgs', 'label'], meta_keys=[]),
@@ -46,9 +48,10 @@ val_pipeline = [
 ]
 test_pipeline = [
     dict(type='MMUniformSampleFrames', clip_len=dict(RGB=8), num_clips=10),
+    dict(type='DecordInit', label_mapping_file='julia/WLASL300/label_mapping.txt'),
     dict(type='MMDecode'),
     dict(type='MMCompact', hw_ratio=1., allow_imgpad=True),
-    dict(type='Resize', scale=(224, 224), keep_ratio=False),
+    dict(type='Resize', scale=(448, 448), keep_ratio=False),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='FormatShape', input_format='NCTHW'),
     dict(type='Collect', keys=['imgs', 'label'], meta_keys=[]),
@@ -62,7 +65,6 @@ data = dict(
     train=dict(
         type='RepeatDataset',
         times=10,
-        #TODO data_prefix
         dataset=dict(type=dataset_type, split='train', ann_file=ann_file, data_prefix=data_root, pipeline=train_pipeline)),
     val=dict(type=dataset_type, split='val', ann_file=ann_file, data_prefix=data_root, pipeline=val_pipeline),
     test=dict(type=dataset_type, split='test', ann_file=ann_file, data_prefix=data_root, pipeline=test_pipeline))
@@ -84,8 +86,4 @@ early_stopping = dict(
     mode='min')
 log_config = dict(interval=20, hooks=[dict(type='TextLoggerHook')])
 work_dir = './work_dirs/julia/RGBPose_Conv3d/rgb_only_lr_0_01' #TODO
-
-#TODO: RGb channels auch einfach vergrößern damit es passt? 
-#TODO: kontrollieren was noch in pose configs verändert habe
-#TODO: funktioniert das mit den unterordnern?
 

@@ -96,8 +96,10 @@ class PoseDataset(BaseDataset):
             identifier = 'filename' if 'filename' in data[0] else 'frame_dir'
             split = set(split[self.split])
             data = [x for x in data if x[identifier] in split]
+            
 
         for item in data:
+            item['split'] = self.split #add split information
             # Sometimes we may need to load anno from the file
             if 'filename' in item:
                 item['filename'] = osp.join(self.data_prefix, item['filename'])

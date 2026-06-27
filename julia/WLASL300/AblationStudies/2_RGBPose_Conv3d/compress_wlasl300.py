@@ -32,7 +32,7 @@ def compress(src, dest, shape, target_size=540, fps=-1):
     w, h = shape
     #scale video to height=targetsize, width= 2*targetsize for videos in landscape mode (Querformat), the other way around for portrait format (Hochformat)
     scale_str = f'-vf scale=-2:{target_size}' if w >= h else f'-vf scale={target_size}:-2'
-    fps_str = f'-r {fps}' if fps > 0 else '' #keep frame rate from original video, if present(-1) 
+    fps_str = f'-fps_mode passthrough' if fps > 0 else '' #keep frame rate from original video, if present(-1) 
     quality_str = '-q:v 1' #highest quality
     vcodec_str = '-c:v mpeg4' # '-c:v libx264' change encoder to mpeg4 as libx264 is not available
     cmd = f'ffmpeg -y -loglevel error -i {src} -threads 1 {quality_str} {scale_str} {fps_str} {vcodec_str} {dest}'
@@ -57,6 +57,32 @@ def compress_wlasl300(file):
     print("Shape: ", shape)
 
 
+def compress_failed_files_windows(src, dest, shape, target_size=540):
+    if "04709" in dest or "32669" in dest:
+        import imageio_ffmpeg
+        print("Source: ", src)
+        print("Destination: ", dest)
+        print("Shape: ", shape)
+
+        w, h = shape
+        scale_str = f'scale=-2:{target_size}' if w >= h else f'scale={target_size}:-2'
+
+        cmd = [
+            imageio_ffmpeg.get_ffmpeg_exe(),
+            "-y",
+            "-loglevel", "error",
+            "-i", src,
+            "-threads", "1",
+            "-q:v", "1",
+            "-vf", scale_str,
+            "-c:v", "mpeg4",
+            dest
+        ]
+
+        subprocess.run(cmd)
+        print("Compressed video saved to: ", dest)
+
+
 
 if __name__ == "__main__":
     os.makedirs(output_folder, exist_ok=True)
@@ -68,7 +94,10 @@ if __name__ == "__main__":
     #pool = mp.Pool(1)
     #pool.map(compress_wlasl300, files)
     for file in files:
-        compress_wlasl300(file)
+        try:
+            compress_wlasl300(file)
+        except Exception as e:
+            print(f"Error occurred while processing video: {file}: {e}")
 
     #python "julia/WLASL300/AblationStudies/2_RGBPose_Conv3d/compress_wlasl300.py"
 
