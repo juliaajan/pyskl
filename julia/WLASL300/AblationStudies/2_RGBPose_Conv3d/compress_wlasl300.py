@@ -1,12 +1,11 @@
 
 import multiprocessing as mp
 import os
+import cv2
 import subprocess
 from pathlib import Path
 
-import cv2
 
-#from pyskl.smp import *
 
 input_folder = '../WLASL300/WLASL_300'
 output_folder = '../WLASL300/WLASL_300_compressed'
@@ -57,10 +56,26 @@ def compress_wlasl300(file):
     print("Shape: ", shape)
 
 
-def compress_failed_files_windows(src, dest, shape, target_size=540):
-    if "04709" in dest or "32669" in dest:
+def compress_failed_file_windows(video_id, target_size=540):
+    global input_folder
+    video_file = None
+    for dirpath, _, filenames in os.walk(input_folder):
+        for filename in filenames:
+            if video_id in filename and filename.endswith('.mp4'):
+                video_file = os.path.join(dirpath, filename)
+                break
+
+    shape = get_shape(video_file) #tuple
+
+    rel_path = os.path.relpath(video_file, input_folder) #eg train/12345.mp4
+    #add train, test, val folders in WLALS_300_compressed
+    dest = os.path.join(output_folder, rel_path) 
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+
+    if video_id in dest:
         import imageio_ffmpeg
-        print("Source: ", src)
+        print("Compressing video: ", video_id)
+        print("Source: ", video_file)
         print("Destination: ", dest)
         print("Shape: ", shape)
 
@@ -71,7 +86,7 @@ def compress_failed_files_windows(src, dest, shape, target_size=540):
             imageio_ffmpeg.get_ffmpeg_exe(),
             "-y",
             "-loglevel", "error",
-            "-i", src,
+            "-i", video_file,
             "-threads", "1",
             "-q:v", "1",
             "-vf", scale_str,
@@ -86,18 +101,18 @@ def compress_failed_files_windows(src, dest, shape, target_size=540):
 
 if __name__ == "__main__":
     os.makedirs(output_folder, exist_ok=True)
+    #compress_failed_file_windows("35364") #uncomment to compress a specific video
+
 
     #collect all mp4 videos from train, test and val folders
-    files = collect_videos(input_folder) #TODO: Path?
+    files = collect_videos(input_folder)
 
     #processes each video individually
-    #pool = mp.Pool(1)
-    #pool.map(compress_wlasl300, files)
     for file in files:
         try:
             compress_wlasl300(file)
         except Exception as e:
-            print(f"Error occurred while processing video: {file}: {e}")
+           print(f"Error occurred while processing video: {file}: {e}")
 
     #python "julia/WLASL300/AblationStudies/2_RGBPose_Conv3d/compress_wlasl300.py"
 
