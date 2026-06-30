@@ -26,7 +26,7 @@ train_pipeline = [
     dict(type='DecordInit', label_mapping_file='julia/WLASL300/label_mapping.txt'),
     dict(type='MMDecode'),
     dict(type='MMCompact', hw_ratio=1., allow_imgpad=True),
-    dict(type='Resize', scale=(256, 256), keep_ratio=False),
+    dict(type='Resize', scale=(512, 512), keep_ratio=False), #first resizing bigger than second
     dict(type='RandomResizedCrop', area_range=(0.56, 1.0)),
     dict(type='Resize', scale=(448, 448), keep_ratio=False),
     dict(type='Flip', flip_ratio=0.5), #use flipping 
@@ -86,4 +86,6 @@ early_stopping = dict(
     mode='min')
 log_config = dict(interval=20, hooks=[dict(type='TextLoggerHook')])
 work_dir = './work_dirs/julia/RGBPose_Conv3d/rgb_only_lr_0_01' #TODO
+load_from = './work_dirs/julia/RGBPose_Conv3d/rgb_only_lr_0_01_smallerResizing/epoch_39.pth'
+
 
