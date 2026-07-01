@@ -28,11 +28,11 @@ model = dict(
         dropout=0.5),
     test_cfg=dict(average_clips='prob'))
 
-dataset_type = 'PoseDataset' #
-ann_file = 'pyskl_mediapipe_annos_2d_denormalized_MOUTH_HANDS.pkl' #TODO 
+dataset_type = 'PoseDataset' 
+ann_file = 'julia/WLASL300/pyskl_mediapipe_annos_2d_denormalized_MOUTH_HANDS.pkl' #TODO 
 
-left_face = [0]
-right_face = [2]
+right_face = [0] 
+left_face = [2]
 #left and right hand keypoints each with 21 kps starting at index 4, left hand is extracted first
 left_hand = list(range(4, 25))
 right_hand = list(range(25, 46)) 
