@@ -20,7 +20,7 @@ skeleton_map = dict(
     #face connections inside the FACE keypoints
     #order: [46, 52, 53, 65, 295, 283, 282, 276, 7, 159, 155, 145, 382, 386, 249, 374, 324, 13, 78, 14]
     mediapipe_mouth=[
-        (0, 1, 'rf'), (1, 2, 'lf'), (2, 3,'lf'), (3, 0,'rf'), #right eyebrow
+        (0, 1, 'lf'), (1, 2, 'rf'), (2, 3,'rf'), (3, 0,'lf'), #left and right mouth corners
     ]
 )
 
@@ -124,8 +124,8 @@ def Vis2DPoseMediaPipe(item, thre=0.0, out_shape=(1080, 1920), fps=25, video=Non
         'ld': ((0xff, 0xba, 0x8), (0xe8, 0x5d, 0x4)),
         't': ((0xee, 0x8b, 0x98), (0xd9, 0x4, 0x29)),
         'f': ((0x8d, 0x99, 0xae), (0x2b, 0x2d, 0x42)),
-        'rf': ((0xff, 0xff, 0), (0xff, 0xff, 0)), #right face yellow (ist aber links)
-        'lf': ((0xff, 0, 0xff), (0xff, 0, 0xff)), #left face puprle (ist aber rechts)
+        'rf': ((0xff, 0xff, 0), (0xff, 0xff, 0)), #right face yellow 
+        'lf': ((0xff, 0, 0xff), (0xff, 0, 0xff)), #left face puprle
 
     }
 

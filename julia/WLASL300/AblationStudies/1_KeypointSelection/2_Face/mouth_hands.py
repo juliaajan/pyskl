@@ -3,7 +3,6 @@
 
 #change: FACE_LANDMARK_INDICES, in_channels, flip keypoints, linked annotation file, work_dir name, in_channels,  flip keypoints
 
-#order of extracted keypoints: nose (1), face, left hand (21), right hand (21)
 FACE_LANDMARK_INDICES = [ 324, 13, 78, 14] #TODO
 N_HAND_LANDMARKS = 21 #x2 for both hands
 
@@ -31,8 +30,8 @@ model = dict(
 dataset_type = 'PoseDataset' 
 ann_file = 'julia/WLASL300/pyskl_mediapipe_annos_2d_denormalized_MOUTH_HANDS.pkl' #TODO 
 
-right_face = [0] 
-left_face = [2]
+left_face = [0] 
+right_face = [2]
 #left and right hand keypoints each with 21 kps starting at index 4, left hand is extracted first
 left_hand = list(range(4, 25))
 right_hand = list(range(25, 46)) 
