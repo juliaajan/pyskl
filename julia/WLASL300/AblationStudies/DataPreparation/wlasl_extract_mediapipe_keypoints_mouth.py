@@ -1,5 +1,5 @@
 #Starting from the annotation file including keypoints for the nose, face and hands,
-#this file removes the hip nose, eyebrows and eye keypoints to enable training with mouth_hands.py
+#this file removes the nose, eyebrows and eye keypoints to enable training with mouth_hands.py
 
 import argparse
 import os
@@ -24,9 +24,10 @@ def remove_nose_eyebrows_eyes_keypoints(input_path):
     annotations = anno_dict['annotations']
     split_dict = anno_dict['split']
     
-    #upperbody keypoints are indices 0-24, followed by 21 for left hand and 21 for right hand
-    #indices 23 and 24 (hips) should be removed
-    indices_to_keep = [i for i in range(17, 68)]
+    #the original file has 1 nose keypoint, followed by 20 face ekypoints and 2x21 hand keypoints
+    #the first nose kp and the following 16 face keypoints should be removed (indices 0, 1-16)
+    #the following 4 mouth kepyoints (indices 17-20) and 2x21 hand keypoints should remain
+    indices_to_keep = [i for i in range(17, 63)]
     print(f"Indices to keep: {indices_to_keep}")
 
     assert (len(indices_to_keep) == 46), f"Expected to keep 46 keypoints, but got {len(indices_to_keep)}"
