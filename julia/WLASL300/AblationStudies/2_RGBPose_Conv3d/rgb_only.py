@@ -15,8 +15,7 @@ model = dict(
 dataset_type = 'PoseDataset'
 data_root = '../WLASL300/WLASL_300_compressed'
 #for the RGB stream, the same ann file as for the Pose stream can be used
-#However, as the pose data won't be processed in the RGB stream, it is unimportant which specific skeleton configuration is used here
-ann_file = 'julia/WLASL300/pyskl_mediapipe_annos_2d_denormalized_NOSE_FACE_HANDS.pkl'
+ann_file = 'julia/WLASL300/pyskl_mediapipe_annos_2d_denormalized_NO_KPS_FROM_BODYMODEL.pkl' #TODO 
 label_mappings='julia/WLASL300/label_mapping.txt'
 
 img_norm_cfg = dict(mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_bgr=False)
@@ -85,7 +84,6 @@ early_stopping = dict(
     max_epochs=240,
     mode='min')
 log_config = dict(interval=20, hooks=[dict(type='TextLoggerHook')])
-work_dir = './work_dirs/julia/RGBPose_Conv3d/rgb_only_lr_0_01' #TODO
-load_from = './work_dirs/julia/RGBPose_Conv3d/rgb_only_lr_0_01_smallerResizing/epoch_39.pth'
+work_dir = './work_dirs/julia/RGBPose_Conv3d/rgb_only_hands_only_lr_0_01' #TODO
 
 

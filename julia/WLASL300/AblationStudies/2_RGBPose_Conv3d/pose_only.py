@@ -1,20 +1,20 @@
-FACE_LANDMARK_INDICES = [ 324, 13, 78, 14] #TODO
+#FACE_LANDMARK_INDICES = [ 324, 13, 78, 14] #TODO
 N_HAND_LANDMARKS = 21 #x2 for both hands
 
 model = dict(
     type='Recognizer3D',
     backbone=dict(
         type='ResNet3dSlowOnly',
-        in_channels= len(FACE_LANDMARK_INDICES) + 2 * N_HAND_LANDMARKS, #number of keypoints
+        in_channels= 2 * N_HAND_LANDMARKS, #number of keypoints
         base_channels=32,
         num_stages=3,
         out_indices=(2, ),
         stage_blocks=(4, 6, 3),
-        conv1_stride=(1, 1),
-        pool1_stride=(1, 1),
+        conv1_stride=(1, 1), #no spatial downsampling in stem layer
+        pool1_stride=(1, 1), #no temporal downsampling in stem layer
         inflate=(0, 1, 1),
-        spatial_strides=(2, 2, 2),
-        temporal_strides=(1, 1, 1)),
+        spatial_strides=(2, 2, 2), #stride 2 to reduce spatial dimensions in each resnet block
+        temporal_strides=(1, 1, 1)), #temporal stride 1, framerate stays the same in each resenet block
     cls_head=dict(
         type='I3DHead',
         in_channels=512,
@@ -23,15 +23,15 @@ model = dict(
     test_cfg=dict(average_clips='prob'))
 
 dataset_type = 'PoseDataset'
-ann_file = 'julia/WLASL300/pyskl_mediapipe_annos_2d_denormalized_MOUTH_HANDS.pkl' #TODO 
+ann_file = 'julia/WLASL300/pyskl_mediapipe_annos_2d_denormalized_NO_KPS_FROM_BODYMODEL.pkl' #TODO 
 
-left_face = [0] 
-right_face = [2]
+#left_face = [0] 
+#right_face = [2]
 #left and right hand keypoints each with 21 kps starting at index 4, left hand is extracted first
-left_hand = list(range(4, 25))
-right_hand = list(range(25, 46)) 
-left_kp = left_face + left_hand
-right_kp = right_face + right_hand
+left_hand = list(range(0, 21))
+right_hand = list(range(21, 42)) 
+left_kp = left_hand
+right_kp =  right_hand
 
 train_pipeline = [
     dict(type='UniformSampleFrames', clip_len=32),
@@ -50,7 +50,7 @@ val_pipeline = [
     dict(type='UniformSampleFrames', clip_len=32, num_clips=1),
     dict(type='PoseDecode'),
     dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
-    dict(type='Resize', scale=(112), keep_ratio=False),
+    dict(type='Resize', scale=(112, 112), keep_ratio=False),
     dict(type='GeneratePoseTarget', with_kp=True, with_limb=False),
     dict(type='FormatShape', input_format='NCTHW_Heatmap'),
     dict(type='Collect', keys=['imgs', 'label'], meta_keys=[]),
@@ -94,5 +94,5 @@ early_stopping = dict(
     max_epochs=240,
     mode='min')
 log_config = dict(interval=20, hooks=[dict(type='TextLoggerHook')])
-work_dir = './work_dirs/julia/RGBPose_Conv3d/pose_only_lr_0_01' #TODO
+work_dir = './work_dirs/julia/RGBPose_Conv3d/pose_only_hands_only_lr_0_01' #TODO
 
