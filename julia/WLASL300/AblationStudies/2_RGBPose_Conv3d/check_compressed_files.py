@@ -58,7 +58,7 @@ def compare_frame_lengths(files, anno_path):
 
         if num_frames_anno != num_frames_compressed:
             print(f"##Video id {video_id} --- Frames from anno: {num_frames_anno}, Frames from (compressed) video reader: {num_frames_compressed}")
-            count += 1
+            count_mismatch += 1
             if abs(num_frames_anno - num_frames_compressed) > 1:
                 count_severe_mismatch += 1
 
