@@ -15,7 +15,7 @@ model = dict(
 dataset_type = 'PoseDataset'
 data_root = '../WLASL300/WLASL_300_compressed'
 #for the RGB stream, the same ann file as for the Pose stream can be used
-ann_file = 'julia/WLASL300/pyskl_mediapipe_annos_2d_denormalized_NO_KPS_FROM_BODYMODEL.pkl' #TODO 
+ann_file = 'julia/WLASL300/pyskl_mediapipe_annos_2d_denormalized_NOFACE_NOBODY_compressed.pkl' #TODO 
 label_mappings='julia/WLASL300/label_mapping.txt'
 
 img_norm_cfg = dict(mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_bgr=False)
