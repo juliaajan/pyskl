@@ -24,7 +24,7 @@ train_pipeline = [
     dict(type='MMUniformSampleFrames', clip_len=dict(RGB=8), num_clips=1),
     dict(type='DecordInit', label_mapping_file='julia/WLASL300/label_mapping.txt'),
     dict(type='MMDecode'),
-    #dict(type='MMCompact', hw_ratio=1., allow_imgpad=True),
+    dict(type='MMCompact', hw_ratio=1., allow_imgpad=True),
     dict(type='Resize', scale=(512, 512), keep_ratio=False), #first resizing bigger than second
     dict(type='RandomResizedCrop', area_range=(0.56, 1.0)),
     dict(type='Resize', scale=(448, 448), keep_ratio=False),
