@@ -4,11 +4,12 @@ import os
 import cv2
 import subprocess
 from pathlib import Path
+import argparse
+import pickle
+import numpy as np
 
 
-
-input_folder = '../WLASL300/WLASL_300'
-output_folder = '../WLASL300/WLASL_300_compressed'
+TARGET_SIZE = 540
 
 def get_shape(video_path):
     cap = cv2.VideoCapture(video_path)
@@ -27,10 +28,10 @@ def collect_videos(root):
     return videos
 
 #adopted from configs/rgbpose_con3d/compress:nturgbd.py
-def compress(src, dest, shape, target_size=540, fps=-1):
+def compress(src, dest, shape, fps=-1):
     w, h = shape
     #scale video to height=targetsize, width= 2*targetsize for videos in landscape mode (Querformat), the other way around for portrait format (Hochformat)
-    scale_str = f'-vf scale=-2:{target_size}' if w >= h else f'-vf scale={target_size}:-2'
+    scale_str = f'-vf scale=-2:{TARGET_SIZE}' if w >= h else f'-vf scale={TARGET_SIZE}:-2'
     fps_str = f'-fps_mode passthrough' if fps > 0 else '' #keep frame rate from original video, if present(-1) 
     quality_str = '-q:v 1' #highest quality
     vcodec_str = '-c:v mpeg4' # '-c:v libx264' change encoder to mpeg4 as libx264 is not available
@@ -40,13 +41,13 @@ def compress(src, dest, shape, target_size=540, fps=-1):
     print("Compressed video saved to: ", dest)
 
 
-def compress_wlasl300(file):
+def compress_wlasl300(file, input_path, output_path):
     src = file
     shape = get_shape(src) #tuple
 
-    rel_path = os.path.relpath(src, input_folder) #eg train/12345.mp4
+    rel_path = os.path.relpath(src, input_path) #eg train/12345.mp4
     #add train, test, val folders in WLALS_300_compressed
-    dest = os.path.join(output_folder, rel_path) 
+    dest = os.path.join(output_path, rel_path) 
     os.makedirs(os.path.dirname(dest), exist_ok=True)
     
     compress(src, dest, shape)
@@ -56,10 +57,9 @@ def compress_wlasl300(file):
     print("Shape: ", shape)
 
 
-def compress_failed_file_windows(video_id, target_size=540):
-    global input_folder
+def compress_failed_file_windows(video_id, input_path, output_path):
     video_file = None
-    for dirpath, _, filenames in os.walk(input_folder):
+    for dirpath, _, filenames in os.walk(input_path):
         for filename in filenames:
             if video_id in filename and filename.endswith('.mp4'):
                 video_file = os.path.join(dirpath, filename)
@@ -67,9 +67,9 @@ def compress_failed_file_windows(video_id, target_size=540):
 
     shape = get_shape(video_file) #tuple
 
-    rel_path = os.path.relpath(video_file, input_folder) #eg train/12345.mp4
+    rel_path = os.path.relpath(video_file, input_path) #eg train/12345.mp4
     #add train, test, val folders in WLALS_300_compressed
-    dest = os.path.join(output_folder, rel_path) 
+    dest = os.path.join(output_path, rel_path) 
     os.makedirs(os.path.dirname(dest), exist_ok=True)
 
     if video_id in dest:
@@ -80,7 +80,7 @@ def compress_failed_file_windows(video_id, target_size=540):
         print("Shape: ", shape)
 
         w, h = shape
-        scale_str = f'scale=-2:{target_size}' if w >= h else f'scale={target_size}:-2'
+        scale_str = f'scale=-2:{TARGET_SIZE}' if w >= h else f'scale={TARGET_SIZE}:-2'
 
         cmd = [
             imageio_ffmpeg.get_ffmpeg_exe(),
@@ -97,23 +97,124 @@ def compress_failed_file_windows(video_id, target_size=540):
         subprocess.run(cmd)
         print("Compressed video saved to: ", dest)
 
+def compress_annotations(anno_in_file, input_folder, output_folder):
+    with open(anno_in_file, 'rb') as f:
+        data = pickle.load(f) #data contains split and annotations
+
+    compressed_annotations = [] 
+    for anno in data['annotations']:
+        anno_compressed = compress_single_annotatio(anno, input_folder, output_folder)
+        compressed_annotations.append(anno_compressed) 
+    
+    output_dict = {
+        'split': data['split'],  #keep original split info
+        'annotations': compressed_annotations
+    }
+
+    #create output file and save compressed anno file
+    anno_in_path = os.path.dirname(anno_in_file)
+
+    anno_in_filename = os.path.splitext(os.path.basename(anno_in_file))[0]
+    anno_out_filename = f"{anno_in_filename}_compressed.pkl"
+    
+    output_file= os.path.join(anno_in_path, anno_out_filename)
+
+    with open(output_file, 'wb') as f:
+        pickle.dump(output_dict, f)
+    print(f"Saved compressed annotations {output_file}")
+
+
+def compress_single_annotatio(anno, input_folder, output_folder):
+    video_id = anno['frame_dir']
+    input_video_path = None
+    output_video_path = None
+
+    for dirpath, _, filenames in os.walk(input_folder):
+        for filename in filenames:
+            if filename.endswith('.mp4') and Path(filename).stem == video_id:
+                input_video_path = os.path.join(dirpath, filename)
+                rel_path = os.path.relpath(input_video_path, input_folder)
+                output_video_path = os.path.join(output_folder, rel_path)
+                break
+        if input_video_path is not None:
+            break
+
+    if input_video_path is None or output_video_path is None:
+        raise ValueError(f'Could not resolve input/output video path for video id {video_id}')
+
+    original_shape_wh = get_shape(input_video_path)
+    compressed_shape_wh = get_shape(output_video_path)
+
+    # get_shape returns (width, height), annotation stores (height, width)
+    original_shape_hw = (original_shape_wh[1], original_shape_wh[0])
+    compressed_shape_hw = (compressed_shape_wh[1], compressed_shape_wh[0])
+
+    #assert that the actual, original size matches shape indicated in the annotation file
+    assert tuple(anno['img_shape']) == original_shape_hw, (
+        f"img_shape mismatch for {video_id}: annotation={anno['img_shape']} vs video={original_shape_hw}")
+
+    #check that the compressed shape is correctly scaled according to the target size
+    orig_w, orig_h = original_shape_wh
+    comp_w, comp_h = compressed_shape_wh
+    if orig_w >= orig_h:
+        assert comp_h == TARGET_SIZE, (
+            f"Compressed height mismatch for {video_id}: expected {TARGET_SIZE}, got {comp_h}")
+    else:
+        assert comp_w == TARGET_SIZE, (
+            f"Compressed width mismatch for {video_id}: expected {TARGET_SIZE}, got {comp_w}")
+
+
+    #finally, scale keypoints and update annotation
+    scale_x = comp_w / orig_w
+    scale_y = comp_h / orig_h
+
+    if 'keypoint' in anno and anno['keypoint'] is not None:
+        keypoint = np.asarray(anno['keypoint'])
+        keypoint_dtype = keypoint.dtype
+        keypoint = keypoint.astype(np.float32, copy=True)
+        keypoint[..., 0] *= scale_x
+        keypoint[..., 1] *= scale_y
+        anno['keypoint'] = keypoint.astype(keypoint_dtype, copy=False)
+
+    #update the image shape of the annotation
+    anno['img_shape'] = compressed_shape_hw
+    anno['original_shape'] = compressed_shape_hw
+
+    print("Successfully compressed file: ", video_id)
+
+    return anno
+
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description='Compress WLASL300 videos and rescale annotations to the new video size.')
+    parser.add_argument('--input-video-path', default=None, help='Folder that holds the original WLASL300 videos, e.g. ../WLASL300/WLASL_300')
+    parser.add_argument('--output-video-path', default=None, help='Folder to save the compressed videos')
+    parser.add_argument('--ann-file', default=None, help='Annotation file holding keypoints that should be resized to new compressed video dimensions')
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
-    os.makedirs(output_folder, exist_ok=True)
-    #compress_failed_file_windows("35364") #uncomment to compress a specific video
+    args = parse_args()
+    os.makedirs(args.output_video_path, exist_ok=True)
+    #compress_failed_file_windows("35364", args.input_video_path, args.output_video_path) #uncomment to compress a specific video
 
 
     #collect all mp4 videos from train, test and val folders
-    files = collect_videos(input_folder)
+    files = collect_videos(args.input_video_path)
 
     #processes each video individually
     for file in files:
         try:
-            compress_wlasl300(file)
+            compress_wlasl300(file, args.input_video_path, args.output_video_path)
         except Exception as e:
            print(f"Error occurred while processing video: {file}: {e}")
 
-    #python "julia/WLASL300/AblationStudies/2_RGBPose_Conv3d/compress_wlasl300.py"
+    #create new annotation file with compressed annotations
+    compress_annotations(args.ann_file, args.input_video_path, args.output_video_path)
 
+    #python "julia/WLASL300/AblationStudies/2_RGBPose_Conv3d/compress_wlasl300.py"
+    #input_folder = '../WLASL300/WLASL_300'
+    #output_folder = '../WLASL300/WLASL_300_compressed'
 
