@@ -4,7 +4,7 @@ RGBPose Conv3d is a model that incorporates not only the skeletal heatmaps, but 
 # Training
 
 ## Step 1. Data Preprosessing
-First, download and unzip the RGB videos from WLASL300 in a folder called "WLASL300", and compress the raw video with compress_wlasl300.py. This adds a new folder called WLASL_300_compressed and places the videos rescaled to `960x540` inside. Additionally, it takes the annotation file with the skeletal keypoints and compresses the keypoints to the according size. It is important that the compressed skeletal file is used for the RGB stream, as videos are cropped in the train pipeline to a bounding box around the extracted keypoints. If the uncompressed annotation file is used, the relevant keypoints might be cropped out of the rescaled videos.
+First, download and unzip the RGB videos from WLASL300 in a folder called "WLASL300", and compress the raw video with compress_wlasl300.py. This adds a new folder called WLASL_300_compressed and places the videos rescaled to a height of `540px` inside. Additionally, it takes the annotation file with the skeletal keypoints and compresses the keypoints to the according size. It is important that the compressed skeletal file is used for the RGB stream, as videos are cropped in the train pipeline to a bounding box around the extracted keypoints. If the uncompressed annotation file is used, the relevant keypoints might be cropped out of the rescaled videos.
 
 `python julia/WLASL300/AblationStudies/2_RGBPose_Conv3d/compress_wlasl300.py  --input-video-path ../WLASL300/WLASL_300 --output-video-path ../WLASL300/WLASL_300_compressed --ann-file  julia/WLASL300/pyskl_mediapipe_annos_2d_denormalized_NOFACE_NOBODY.pkl `
 
@@ -20,4 +20,14 @@ Make sure to use the compressed annotation file created with compress_wlasl300.p
 bash tools/dist_train.sh julia/WLASL300/AblationStudies/2_RGBPose_Conv3d/rgb_only.py 1 --validate --test-last --test-best
 # Train the Pose-only model (1 GPU)
 bash tools/dist_train.sh julia/WLASL300/AblationStudies/2_RGBPose_Conv3d/pose_only.py 1 --validate --test-last --test-best
+```
+
+## Step 3. Joint learning with RGB and Pose
+After both the RGB and the Pose models have been trained separately, `merge_pretrain.py` is used to merge them into `rgbpose_conv3d_init.pth` .
+
+Finally, train the final model with the config `rgbpose_conv3d.py` , where `rgbpose_conv3d_init.pth` is used as pretrained weights (`load_from`):
+
+```bash
+# Train RGBPoseConv3D (1 GPU)
+bash tools/dist_train.sh julia/WLASL300/AblationStudies/2_RGBPose_Conv3d/rgbpose_conv3d.py 1 --validate --test-last --test-best
 ```
