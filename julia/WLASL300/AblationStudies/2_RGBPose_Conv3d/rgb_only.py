@@ -15,7 +15,7 @@ model = dict(
 dataset_type = 'PoseDataset'
 data_root = '../WLASL300/WLASL_300_compressed'
 #for the RGB stream, the same ann file as for the Pose stream can be used
-ann_file = 'julia/WLASL300/pyskl_mediapipe_annos_2d_denormalized_NOFACE_NOBODY_compressed.pkl' #TODO 
+ann_file = 'julia/WLASL300/pyskl_mediapipe_annos_2d_denormalized_NOSE_FACE_HANDS_compressed.pkl' #TODO 
 label_mappings='julia/WLASL300/label_mapping.txt'
 
 img_norm_cfg = dict(mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_bgr=False)
@@ -24,7 +24,7 @@ train_pipeline = [
     dict(type='MMUniformSampleFrames', clip_len=dict(RGB=8), num_clips=1),
     dict(type='DecordInit', label_mapping_file='julia/WLASL300/label_mapping.txt'),
     dict(type='MMDecode'),
-    dict(type='MMCompact', hw_ratio=1., allow_imgpad=True),
+    dict(type='MMCompact', hw_ratio=1., allow_imgpad=True, padding_top=0.1),
     dict(type='Resize', scale=(512, 512), keep_ratio=False), #first resizing bigger than second
     dict(type='RandomResizedCrop', area_range=(0.56, 1.0)),
     dict(type='Resize', scale=(448, 448), keep_ratio=False),
@@ -38,7 +38,7 @@ val_pipeline = [
     dict(type='MMUniformSampleFrames', clip_len=dict(RGB=8), num_clips=1),
     dict(type='DecordInit', label_mapping_file='julia/WLASL300/label_mapping.txt'),
     dict(type='MMDecode'),
-    dict(type='MMCompact', hw_ratio=1., allow_imgpad=True),
+    dict(type='MMCompact', hw_ratio=1., allow_imgpad=True, padding_top=0.1),
     dict(type='Resize', scale=(448, 448), keep_ratio=False),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='FormatShape', input_format='NCTHW'),
@@ -49,7 +49,7 @@ test_pipeline = [
     dict(type='MMUniformSampleFrames', clip_len=dict(RGB=8), num_clips=10),
     dict(type='DecordInit', label_mapping_file='julia/WLASL300/label_mapping.txt'),
     dict(type='MMDecode'),
-    dict(type='MMCompact', hw_ratio=1., allow_imgpad=True),
+    dict(type='MMCompact', hw_ratio=1., allow_imgpad=True, padding_top=0.1),
     dict(type='Resize', scale=(448, 448), keep_ratio=False),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='FormatShape', input_format='NCTHW'),
@@ -84,6 +84,6 @@ early_stopping = dict(
     max_epochs=240,
     mode='min')
 log_config = dict(interval=20, hooks=[dict(type='TextLoggerHook')])
-work_dir = './work_dirs/julia/RGBPose_Conv3d/rgb_only_hands_only_lr_0_01' #TODO
+work_dir = './work_dirs/julia/RGBPose_Conv3d/rgb_only_nose_face_hands_lr_0_01_topPadding' #TODO
 
 
