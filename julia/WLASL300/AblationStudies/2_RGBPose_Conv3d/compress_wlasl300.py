@@ -180,7 +180,7 @@ def compress_single_annotatio(anno, input_folder, output_folder):
     anno['img_shape'] = compressed_shape_hw
     anno['original_shape'] = compressed_shape_hw
 
-    print("Successfully compressed file: ", video_id)
+    print("Successfully compressed annotation: ", video_id)
 
     return anno
 
@@ -205,11 +205,11 @@ if __name__ == "__main__":
     files = collect_videos(args.input_video_path)
 
     #processes each video individually
-    for file in files:
-        try:
-            compress_wlasl300(file, args.input_video_path, args.output_video_path)
-        except Exception as e:
-           print(f"Error occurred while processing video: {file}: {e}")
+    #for file in files:
+        #try:
+           # compress_wlasl300(file, args.input_video_path, args.output_video_path)
+        #except Exception as e:
+           #print(f"Error occurred while processing video: {file}: {e}")
 
     #create new annotation file with compressed annotations
     compress_annotations(args.ann_file, args.input_video_path, args.output_video_path)
