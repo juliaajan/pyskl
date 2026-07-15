@@ -26,7 +26,7 @@ train_pipeline = [
     dict(type='MMDecode'),
     dict(type='MMCompact', hw_ratio=1., allow_imgpad=True),
     dict(type='Resize', scale=(512, 512), keep_ratio=False), #first resizing bigger than second
-    dict(type='RandomResizedCrop', area_range=(0.56, 1.0)),
+    #dict(type='RandomResizedCrop', area_range=(0.56, 1.0)),
     #dict(type='Resize', scale=(448, 448), keep_ratio=False),
     #dict(type='Flip', flip_ratio=0.5), #use flipping 
     dict(type='Normalize', **img_norm_cfg),
