@@ -132,7 +132,7 @@ class MMDecode(DecordInit, DecordDecode, PoseDecode):
 @PIPELINES.register_module()
 class MMCompact:
 
-    def __init__(self, padding=0.25, threshold=10, hw_ratio=1, allow_imgpad=True, padding_top=0):
+    def __init__(self, padding=0.25, threshold=10, hw_ratio=1, allow_imgpad=True):
 
         self.padding = padding
         self.threshold = threshold
@@ -140,9 +140,7 @@ class MMCompact:
             hw_ratio = _pair(hw_ratio)
         self.hw_ratio = hw_ratio
         self.allow_imgpad = allow_imgpad
-        self.padding_top = padding_top
         assert self.padding >= 0
-        assert self.padding_top >= 0
 
     def _get_box(self, keypoint, img_shape):
         # will return x1, y1, x2, y2
@@ -170,11 +168,6 @@ class MMCompact:
 
         min_x, max_x = center[0] - half_width, center[0] + half_width
         min_y, max_y = center[1] - half_height, center[1] + half_height
-
-        #add top_padding to the box (smaller y values are higher in the image)
-        if self.padding_top > 0:
-            top_padding = int((max_y - min_y) * self.padding_top)
-            min_y -= top_padding
 
         # hot update
         if not self.allow_imgpad:
@@ -232,6 +225,5 @@ class MMCompact:
         repr_str = (f'{self.__class__.__name__}(padding={self.padding}, '
                     f'threshold={self.threshold}, '
                     f'hw_ratio={self.hw_ratio}, '
-                    f'padding_top={self.padding_top}, '
                     f'allow_imgpad={self.allow_imgpad})')
         return repr_str
