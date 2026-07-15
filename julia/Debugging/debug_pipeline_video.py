@@ -136,7 +136,7 @@ def parse_args():
 		description='Visualize a video after the exact train_pipeline preprocessing.')
 	parser.add_argument('--config', required=True, help='Path to the pyskl config file')
 	parser.add_argument('--video', required=True, help='Path to the input video')
-	parser.add_argument('--ann-file', default=None, help='Annotation file used to find the matching sample')
+	parser.add_argument('--ann-file', required=True, help='Annotation file used to find the matching sample')
 	parser.add_argument('--out', required=True, help='Output video path or output directory if multiple clips are produced')
 	parser.add_argument('--show-steps', action='store_true', help='Print the instantiated pipeline modules')
 	parser.add_argument('--trace', action='store_true', help='Print shapes after each preprocessing step')
@@ -151,7 +151,7 @@ def main():
 	if train_pipeline is None:
 		raise AttributeError('Config does not define a top-level train_pipeline')
 
-	ann_file = args.ann_file or getattr(cfg, 'ann_file', None)
+	ann_file = args.ann_file
 	if ann_file is None:
 		raise AttributeError('No annotation file provided and config does not define ann_file')
 

@@ -15,7 +15,7 @@ model = dict(
 dataset_type = 'PoseDataset'
 data_root = '../WLASL300/WLASL_300_compressed'
 #for the RGB stream, the same ann file as for the Pose stream can be used
-ann_file = 'julia/WLASL300/pyskl_mediapipe_annos_2d_denormalized_NO_KPS_FROM_BODYMODEL.pkl'
+ann_file = 'julia/WLASL300/pyskl_mediapipe_annos_2d_denormalized_NOSE_FACE_HANDS_compressed.pkl'
 label_mappings='julia/WLASL300/label_mapping.txt'
 
 img_norm_cfg = dict(mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_bgr=False)
@@ -24,7 +24,7 @@ train_pipeline = [
     dict(type='MMUniformSampleFrames', clip_len=dict(RGB=8), num_clips=1),
     dict(type='DecordInit', label_mapping_file='julia/WLASL300/label_mapping.txt'),
     dict(type='MMDecode'),
-    dict(type='MMCompact', hw_ratio=1., allow_imgpad=True, padding_top=0.15),
+    dict(type='MMCompact', hw_ratio=1., allow_imgpad=True),
     dict(type='Resize', scale=(512, 512), keep_ratio=False), #first resizing bigger than second
     dict(type='RandomResizedCrop', area_range=(0.56, 1.0)),
     #dict(type='Resize', scale=(448, 448), keep_ratio=False),
