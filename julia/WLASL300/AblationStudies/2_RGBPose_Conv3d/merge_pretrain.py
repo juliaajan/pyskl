@@ -49,7 +49,7 @@ def merge(rgb_model, pose_model, output_path, cfg_path):
     ckpt[name] = padding(ckpt[name], (512, 320, 1, 1, 1))
     ckpt = OrderedDict(ckpt)
 
-    out = os.path.join(output_path, 'rgbpose_conv3d_init.pth')
+    out = os.path.join(output_path, 'rgbpose_conv3d_init_1.pth')
     torch.save({'state_dict': ckpt}, out)
     print(f"Merged checkpoint saved to: {out}")
 
