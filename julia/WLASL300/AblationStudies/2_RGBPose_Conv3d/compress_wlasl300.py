@@ -97,32 +97,6 @@ def compress_failed_file_windows(video_id, input_path, output_path):
         subprocess.run(cmd)
         print("Compressed video saved to: ", dest)
 
-def compress_annotations(anno_in_file, input_folder, output_folder):
-    with open(anno_in_file, 'rb') as f:
-        data = pickle.load(f) #data contains split and annotations
-
-    compressed_annotations = [] 
-    for anno in data['annotations']:
-        anno_compressed = compress_single_annotatio(anno, input_folder, output_folder)
-        compressed_annotations.append(anno_compressed) 
-    
-    output_dict = {
-        'split': data['split'],  #keep original split info
-        'annotations': compressed_annotations
-    }
-
-    #create output file and save compressed anno file
-    anno_in_path = os.path.dirname(anno_in_file)
-
-    anno_in_filename = os.path.splitext(os.path.basename(anno_in_file))[0]
-    anno_out_filename = f"{anno_in_filename}_compressed.pkl"
-    
-    output_file= os.path.join(anno_in_path, anno_out_filename)
-
-    with open(output_file, 'wb') as f:
-        pickle.dump(output_dict, f)
-    print(f"Saved compressed annotations {output_file}")
-
 
 def compress_single_annotatio(anno, input_folder, output_folder):
     video_id = anno['frame_dir']
@@ -205,14 +179,11 @@ if __name__ == "__main__":
     files = collect_videos(args.input_video_path)
 
     #processes each video individually
-    #for file in files:
-        #try:
-           # compress_wlasl300(file, args.input_video_path, args.output_video_path)
-        #except Exception as e:
-           #print(f"Error occurred while processing video: {file}: {e}")
-
-    #create new annotation file with compressed annotations
-    compress_annotations(args.ann_file, args.input_video_path, args.output_video_path)
+    for file in files:
+        try:
+            compress_wlasl300(file, args.input_video_path, args.output_video_path)
+        except Exception as e:
+           print(f"Error occurred while processing video: {file}: {e}")
 
     #python "julia/WLASL300/AblationStudies/2_RGBPose_Conv3d/compress_wlasl300.py"
     #input_folder = '../WLASL300/WLASL_300'
