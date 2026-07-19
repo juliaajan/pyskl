@@ -22,7 +22,7 @@ model = dict(
     test_cfg=dict(average_clips='prob'))
 
 dataset_type = 'PoseDataset'
-ann_file = 'julia/WLASL300/pyskl_mediapipe_annos_2d_denormalized_NOFACE_NOBODY_compressed.pkl' #TODO 
+ann_file = 'julia/WLASL300/pyskl_mediapipe_annos_2d_denormalized_NOFACE_NOBODY.pkl' #TODO 
 
 #left and right hand keypoints each with 21 kps starting at index 4, left hand is extracted first
 left_kp = list(range(0, 21))
@@ -33,7 +33,7 @@ train_pipeline = [
     dict(type='PoseDecode'),
     dict(type='PoseCompact', hw_ratio=1., allow_imgpad=True),
     dict(type='Resize', scale=(128, 128), keep_ratio=False),
-    dict(type='RandomResizedCrop', area_range=(0.56, 1.0)),
+    dict(type='RandomResizedCrop', area_range=(0.8, 1.0)),
     dict(type='Resize', scale=(112, 112), keep_ratio=False),
     dict(type='Flip', flip_ratio=0.5, left_kp=left_kp, right_kp=right_kp),
     dict(type='GeneratePoseTarget', with_kp=True, with_limb=False),
@@ -89,5 +89,5 @@ early_stopping = dict(
     max_epochs=240,
     mode='min')
 log_config = dict(interval=20, hooks=[dict(type='TextLoggerHook')])
-work_dir = './work_dirs/julia/RGBPose_Conv3d/pose_only_hands_only_lr_0_01_fr48_compressedAnnos' #TODO
+work_dir = './work_dirs/julia/RGBPose_Conv3d/pose_only_hands_only_lr_0_01_fr48_uncompressedAnnos_Resize08' #TODO
 
