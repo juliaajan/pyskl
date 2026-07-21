@@ -2,7 +2,7 @@ N_HAND_LANDMARKS = 21 #x2 for both hands
 
 backbone_cfg = dict(
     type='RGBPoseConv3D',
-    speed_ratio=4,
+    speed_ratio=6,
     channel_ratio=4,
     rgb_pathway=dict(
         num_stages=4,
@@ -53,7 +53,7 @@ img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_bgr=False)
 
 train_pipeline = [
-    dict(type='MMUniformSampleFrames', clip_len=dict(RGB=8, Pose=32), num_clips=1),
+    dict(type='MMUniformSampleFrames', clip_len=dict(RGB=8, Pose=48), num_clips=1),
     dict(type='DecordInit', label_mapping_file=label_mappings),
     dict(type='MMDecode'),
     dict(type='MMCompact', hw_ratio=1., allow_imgpad=True),
@@ -68,7 +68,7 @@ train_pipeline = [
     dict(type='ToTensor', keys=['imgs', 'heatmap_imgs', 'label'])
 ]
 val_pipeline = [
-    dict(type='MMUniformSampleFrames', clip_len=dict(RGB=8, Pose=32), num_clips=1),
+    dict(type='MMUniformSampleFrames', clip_len=dict(RGB=8, Pose=48), num_clips=1),
     dict(type='DecordInit', label_mapping_file=label_mappings),
     dict(type='MMDecode'),
     dict(type='MMCompact', hw_ratio=1., allow_imgpad=True),
@@ -80,7 +80,7 @@ val_pipeline = [
     dict(type='ToTensor', keys=['imgs', 'heatmap_imgs', 'label'])
 ]
 test_pipeline = [
-    dict(type='MMUniformSampleFrames', clip_len=dict(RGB=8, Pose=32), num_clips=10),
+    dict(type='MMUniformSampleFrames', clip_len=dict(RGB=8, Pose=48), num_clips=10),
     dict(type='DecordInit', label_mapping_file=label_mappings),
     dict(type='MMDecode'),
     dict(type='MMCompact', hw_ratio=1., allow_imgpad=True),
@@ -93,7 +93,7 @@ test_pipeline = [
 ]
 
 data = dict(
-    videos_per_gpu=4,
+    videos_per_gpu=2,
     workers_per_gpu=2,
     val_dataloader=dict(videos_per_gpu=1),
     test_dataloader=dict(videos_per_gpu=1),
@@ -101,7 +101,7 @@ data = dict(
     val=dict(type=dataset_type, ann_file=ann_file, split='val', data_prefix=data_root, pipeline=val_pipeline),
     test=dict(type=dataset_type, ann_file=ann_file, split='test', data_prefix=data_root, pipeline=test_pipeline))
 # optimizer
-optimizer = dict(type='SGD', lr=0.001, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=0.0001, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=40, norm_type=2))
 # learning policy
 lr_config = dict(policy='CosineAnnealing', by_epoch=False, min_lr=0)
@@ -118,5 +118,5 @@ checkpoint_config = dict(interval=1)
 workflow = [('train', 1)]
 evaluation = dict(interval=1, metrics=['top_k_accuracy', 'mean_class_accuracy'], topk=(1, 5), key_indicator='RGBPose_1:1_top1_acc')
 log_config = dict(interval=20, hooks=[dict(type='TextLoggerHook')])
-work_dir = './work_dirs/julia/RGBPose_Conv3d/rgbpose_conv3d_1' #TODO
-load_from = 'work_dirs/julia/RGBPose_Conv3d/rgbpose_conv3d_1/rgbpose_conv3d_init_1.pth' #TODO
+work_dir = './work_dirs/julia/RGBPose_Conv3d/rgbpose_conv3d_2' #TODO
+load_from = 'work_dirs/julia/RGBPose_Conv3d/rgbpose_conv3d_2/rgbpose_conv3d_init_2.pth' #TODO
