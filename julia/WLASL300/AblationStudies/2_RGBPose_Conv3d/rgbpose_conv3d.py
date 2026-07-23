@@ -118,5 +118,5 @@ checkpoint_config = dict(interval=1)
 workflow = [('train', 1)]
 evaluation = dict(interval=1, metrics=['top_k_accuracy', 'mean_class_accuracy'], topk=(1, 5), key_indicator='RGBPose_1:1_top1_acc')
 log_config = dict(interval=20, hooks=[dict(type='TextLoggerHook')])
-work_dir = './work_dirs/julia/RGBPose_Conv3d/rgbpose_conv3d_2' #TODO
-load_from = 'work_dirs/julia/RGBPose_Conv3d/rgbpose_conv3d_2/rgbpose_conv3d_init_2.pth' #TODO
+work_dir = './work_dirs/julia/RGBPose_Conv3d/rgbpose_conv3d_3' #TODO
+load_from = 'work_dirs/julia/RGBPose_Conv3d/rgbpose_conv3d_3/rgbpose_conv3d_init_3.pth' #TODO
